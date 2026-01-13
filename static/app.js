@@ -200,7 +200,7 @@ function renderGrid() {
                 div.textContent = square.owner_name;
                 div.classList.add('claimed');
             } else {
-                div.title = `$${price.toFixed(0)} per square`;
+                div.dataset.price = `$${price.toFixed(0)}`;
             }
 
             div.addEventListener('click', () => handleSquareClick(row, col, square));
