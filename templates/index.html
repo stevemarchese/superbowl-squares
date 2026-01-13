@@ -25,20 +25,7 @@
             </div>
         </header>
 
-        <div class="team-names admin-only">
-            <div class="team-input">
-                <label for="team1">Team 1 (columns):</label>
-                <input type="text" id="team1" placeholder="Team 1">
-                <button onclick="saveTeamName(1)">Save</button>
-            </div>
-            <div class="team-input">
-                <label for="team2">Team 2 (rows):</label>
-                <input type="text" id="team2" placeholder="Team 2">
-                <button onclick="saveTeamName(2)">Save</button>
-            </div>
-        </div>
-
-        <div class="quick-steps">
+        <div class="quick-steps hide-for-admin">
             <div class="step-item">
                 <span class="step-number">1</span>
                 <span class="step-text">Click On A Square</span>
@@ -57,12 +44,8 @@
             </div>
         </div>
 
-        <div class="squares-limit-banner">
-            <span class="limit-text">Limit: <strong><span id="squaresLimit">5</span> squares</strong> per person</span>
-            <div class="limit-control admin-only">
-                <label>Change limit:</label>
-                <input type="number" id="squaresLimitInput" value="5" min="1" max="100" onchange="saveSquaresLimit()">
-            </div>
+        <div class="squares-limit-banner hide-for-admin">
+            <span class="limit-text">Limit: <strong><span id="squaresLimitPublic">5</span> squares</strong> per person</span>
         </div>
 
         <div class="grid-tabs-container">
@@ -77,27 +60,18 @@
             <div class="grid" id="grid"></div>
         </div>
 
-        <div class="controls admin-only">
-            <button onclick="randomizeNumbers()" id="randomizeBtn">Randomize Numbers</button>
-            <button onclick="lockNumbers()" id="lockBtn">Lock Numbers</button>
-        </div>
-
-        <div class="fundraiser-stats">
-            <div class="stat-box admin-only">
-                <label>Price per Square: $</label>
-                <input type="number" id="pricePerSquare" value="10" min="0" step="0.01" onchange="savePrice()">
-            </div>
+        <div class="fundraiser-stats hide-for-admin">
             <div class="stat-box">
                 <span class="stat-label">Squares Sold:</span>
-                <span class="stat-value" id="squaresSold">0 / 100</span>
+                <span class="stat-value" id="squaresSoldPublic">0 / 100</span>
             </div>
             <div class="stat-box">
                 <span class="stat-label">Total Collected:</span>
-                <span class="stat-value" id="totalCollected">$0.00</span>
+                <span class="stat-value" id="totalCollectedPublic">$0.00</span>
             </div>
         </div>
 
-        <div class="prize-breakdown">
+        <div class="prize-breakdown hide-for-admin">
             <div class="prize-row">
                 <div class="prize-item">
                     <span class="prize-label">Q1 Prize</span>
@@ -122,88 +96,204 @@
             </div>
         </div>
 
-        <div class="scores-section admin-only">
-            <h2>Scores</h2>
-            <div class="quarters">
-                <div class="quarter">
-                    <h3>Q1</h3>
-                    <input type="number" id="q1_team1" placeholder="Team 1" onchange="saveScores()">
-                    <input type="number" id="q1_team2" placeholder="Team 2" onchange="saveScores()">
-                </div>
-                <div class="quarter">
-                    <h3>Q2</h3>
-                    <input type="number" id="q2_team1" placeholder="Team 1" onchange="saveScores()">
-                    <input type="number" id="q2_team2" placeholder="Team 2" onchange="saveScores()">
-                </div>
-                <div class="quarter">
-                    <h3>Q3</h3>
-                    <input type="number" id="q3_team1" placeholder="Team 1" onchange="saveScores()">
-                    <input type="number" id="q3_team2" placeholder="Team 2" onchange="saveScores()">
-                </div>
-                <div class="quarter">
-                    <h3>Q4 / Final</h3>
-                    <input type="number" id="q4_team1" placeholder="Team 1" onchange="saveScores()">
-                    <input type="number" id="q4_team2" placeholder="Team 2" onchange="saveScores()">
-                </div>
-            </div>
-        </div>
-
         <div class="winners-section" id="winnersSection">
             <h2>Winners</h2>
             <div id="winnersList"></div>
         </div>
 
-        <div class="prize-config admin-only">
-            <h2>Prize Percentages</h2>
-            <p class="config-note">Set the percentage of total collected for each quarter prize. Remainder goes to charity.</p>
-            <div class="prize-inputs">
-                <div class="prize-input-group">
-                    <label>Q1:</label>
-                    <input type="number" id="prizeQ1Pct" value="10" min="0" max="100" step="1" onchange="savePrizePercentages()">
-                    <span>%</span>
-                </div>
-                <div class="prize-input-group">
-                    <label>Halftime:</label>
-                    <input type="number" id="prizeQ2Pct" value="10" min="0" max="100" step="1" onchange="savePrizePercentages()">
-                    <span>%</span>
-                </div>
-                <div class="prize-input-group">
-                    <label>Q3:</label>
-                    <input type="number" id="prizeQ3Pct" value="10" min="0" max="100" step="1" onchange="savePrizePercentages()">
-                    <span>%</span>
-                </div>
-                <div class="prize-input-group">
-                    <label>Final:</label>
-                    <input type="number" id="prizeQ4Pct" value="20" min="0" max="100" step="1" onchange="savePrizePercentages()">
-                    <span>%</span>
-                </div>
-                <div class="prize-total">
-                    <span>Charity: <strong id="charityPct">50</strong>%</span>
+        <!-- Admin Accordion Sections -->
+        <div class="admin-accordion admin-only">
+            <!-- Team Administration -->
+            <div class="accordion-section" id="accordionTeams">
+                <button class="accordion-header" onclick="toggleAccordion('accordionTeams')">
+                    <span>Team Administration</span>
+                    <span class="accordion-icon">+</span>
+                </button>
+                <div class="accordion-content">
+                    <div class="team-admin-grid">
+                        <div class="team-admin-item">
+                            <h4>Team 1 (columns)</h4>
+                            <div class="control-group">
+                                <label>Team Name:</label>
+                                <div class="input-row">
+                                    <input type="text" id="team1" placeholder="Team 1">
+                                    <button onclick="saveTeamName(1)">Save</button>
+                                </div>
+                            </div>
+                            <div class="control-group">
+                                <label>Team Logo:</label>
+                                <div class="logo-upload">
+                                    <img id="team1LogoPreview" class="logo-preview" src="" alt="Team 1 Logo">
+                                    <input type="file" id="team1Logo" accept="image/*" onchange="previewLogo(1)">
+                                    <button onclick="uploadLogo(1)">Upload</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="team-admin-item">
+                            <h4>Team 2 (rows)</h4>
+                            <div class="control-group">
+                                <label>Team Name:</label>
+                                <div class="input-row">
+                                    <input type="text" id="team2" placeholder="Team 2">
+                                    <button onclick="saveTeamName(2)">Save</button>
+                                </div>
+                            </div>
+                            <div class="control-group">
+                                <label>Team Logo:</label>
+                                <div class="logo-upload">
+                                    <img id="team2LogoPreview" class="logo-preview" src="" alt="Team 2 Logo">
+                                    <input type="file" id="team2Logo" accept="image/*" onchange="previewLogo(2)">
+                                    <button onclick="uploadLogo(2)">Upload</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="participants-section admin-only">
-            <h2>Participant Management</h2>
-            <div class="participants-header">
-                <div class="participants-stats">
-                    <span id="participantsCount">0 participants</span>
-                    <span class="stat-divider">|</span>
-                    <span id="unpaidCount">0 unpaid</span>
-                    <span class="stat-divider">|</span>
-                    <span id="totalOwed">$0.00 outstanding</span>
+            <!-- Grid Administration -->
+            <div class="accordion-section" id="accordionGrid">
+                <button class="accordion-header" onclick="toggleAccordion('accordionGrid')">
+                    <span>Grid Administration</span>
+                    <span class="accordion-icon">+</span>
+                </button>
+                <div class="accordion-content">
+                    <div class="admin-grid-controls">
+                        <div class="control-group">
+                            <label>Price per Square:</label>
+                            <div class="input-row">
+                                <span>$</span>
+                                <input type="number" id="pricePerSquare" value="10" min="0" step="0.01" onchange="savePrice()">
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Squares Limit per Person:</label>
+                            <div class="input-row">
+                                <input type="number" id="squaresLimitInput" value="5" min="1" max="100" onchange="saveSquaresLimit()">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="admin-stats-row">
+                        <div class="stat-box">
+                            <span class="stat-label">Squares Sold:</span>
+                            <span class="stat-value" id="squaresSold">0 / 100</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label">Total Collected:</span>
+                            <span class="stat-value" id="totalCollected">$0.00</span>
+                        </div>
+                    </div>
+                    <div class="controls">
+                        <button onclick="randomizeNumbers()" id="randomizeBtn">Randomize Numbers</button>
+                        <button onclick="lockNumbers()" id="lockBtn">Lock Numbers</button>
+                    </div>
                 </div>
-                <button onclick="exportUnpaid()" class="export-btn">Export Unpaid (CSV)</button>
             </div>
-            <div class="participants-list" id="participantsList">
-                <p class="loading-text">Loading participants...</p>
-            </div>
-        </div>
 
-        <div class="admin-section admin-only">
-            <h2>Admin</h2>
-            <button onclick="showChangePasswordModal()">Account Settings</button>
-            <button onclick="resetGame()" class="danger-btn">Reset Game</button>
+            <!-- Scores -->
+            <div class="accordion-section" id="accordionScores">
+                <button class="accordion-header" onclick="toggleAccordion('accordionScores')">
+                    <span>Scores</span>
+                    <span class="accordion-icon">+</span>
+                </button>
+                <div class="accordion-content">
+                    <div class="quarters">
+                        <div class="quarter">
+                            <h3>Q1</h3>
+                            <input type="number" id="q1_team1" placeholder="Team 1" onchange="saveScores()">
+                            <input type="number" id="q1_team2" placeholder="Team 2" onchange="saveScores()">
+                        </div>
+                        <div class="quarter">
+                            <h3>Q2</h3>
+                            <input type="number" id="q2_team1" placeholder="Team 1" onchange="saveScores()">
+                            <input type="number" id="q2_team2" placeholder="Team 2" onchange="saveScores()">
+                        </div>
+                        <div class="quarter">
+                            <h3>Q3</h3>
+                            <input type="number" id="q3_team1" placeholder="Team 1" onchange="saveScores()">
+                            <input type="number" id="q3_team2" placeholder="Team 2" onchange="saveScores()">
+                        </div>
+                        <div class="quarter">
+                            <h3>Q4 / Final</h3>
+                            <input type="number" id="q4_team1" placeholder="Team 1" onchange="saveScores()">
+                            <input type="number" id="q4_team2" placeholder="Team 2" onchange="saveScores()">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prize Percentages -->
+            <div class="accordion-section" id="accordionPrizes">
+                <button class="accordion-header" onclick="toggleAccordion('accordionPrizes')">
+                    <span>Prize Percentages</span>
+                    <span class="accordion-icon">+</span>
+                </button>
+                <div class="accordion-content">
+                    <p class="config-note">Set the percentage of total collected for each quarter prize. Remainder goes to charity.</p>
+                    <div class="prize-inputs">
+                        <div class="prize-input-group">
+                            <label>Q1:</label>
+                            <input type="number" id="prizeQ1Pct" value="10" min="0" max="100" step="1" onchange="savePrizePercentages()">
+                            <span>%</span>
+                        </div>
+                        <div class="prize-input-group">
+                            <label>Halftime:</label>
+                            <input type="number" id="prizeQ2Pct" value="10" min="0" max="100" step="1" onchange="savePrizePercentages()">
+                            <span>%</span>
+                        </div>
+                        <div class="prize-input-group">
+                            <label>Q3:</label>
+                            <input type="number" id="prizeQ3Pct" value="10" min="0" max="100" step="1" onchange="savePrizePercentages()">
+                            <span>%</span>
+                        </div>
+                        <div class="prize-input-group">
+                            <label>Final:</label>
+                            <input type="number" id="prizeQ4Pct" value="20" min="0" max="100" step="1" onchange="savePrizePercentages()">
+                            <span>%</span>
+                        </div>
+                        <div class="prize-total">
+                            <span>Charity: <strong id="charityPct">50</strong>%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Participant Management -->
+            <div class="accordion-section" id="accordionParticipants">
+                <button class="accordion-header" onclick="toggleAccordion('accordionParticipants')">
+                    <span>Participant Management</span>
+                    <span class="accordion-icon">+</span>
+                </button>
+                <div class="accordion-content">
+                    <div class="participants-header">
+                        <div class="participants-stats">
+                            <span id="participantsCount">0 participants</span>
+                            <span class="stat-divider">|</span>
+                            <span id="unpaidCount">0 unpaid</span>
+                            <span class="stat-divider">|</span>
+                            <span id="totalOwed">$0.00 outstanding</span>
+                        </div>
+                        <button onclick="exportUnpaid()" class="export-btn">Export Unpaid (CSV)</button>
+                    </div>
+                    <div class="participants-list" id="participantsList">
+                        <p class="loading-text">Loading participants...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Administration -->
+            <div class="accordion-section" id="accordionAdmin">
+                <button class="accordion-header" onclick="toggleAccordion('accordionAdmin')">
+                    <span>Administration</span>
+                    <span class="accordion-icon">+</span>
+                </button>
+                <div class="accordion-content">
+                    <div class="admin-buttons">
+                        <button onclick="showChangePasswordModal()">Account Settings</button>
+                        <button onclick="resetGame()" class="danger-btn">Reset Game</button>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <footer class="site-footer">

@@ -26,6 +26,10 @@ async function checkAdminStatus() {
             document.querySelectorAll('.admin-only').forEach(el => {
                 el.classList.add('visible');
             });
+            // Hide elements that should be hidden for admin
+            document.querySelectorAll('.hide-for-admin').forEach(el => {
+                el.classList.add('hidden');
+            });
             // Load participant data for admin
             loadParticipants();
         }
@@ -33,6 +37,24 @@ async function checkAdminStatus() {
         renderGridTabs();
     } catch (error) {
         console.error('Error checking admin status:', error);
+    }
+}
+
+// Accordion toggle function
+function toggleAccordion(sectionId) {
+    const section = document.getElementById(sectionId);
+    if (!section) return;
+
+    const isOpen = section.classList.contains('open');
+
+    // Close all sections
+    document.querySelectorAll('.accordion-section').forEach(s => {
+        s.classList.remove('open');
+    });
+
+    // Open clicked section if it was closed
+    if (!isOpen) {
+        section.classList.add('open');
     }
 }
 
@@ -171,7 +193,9 @@ async function loadGrid() {
         gameData = data;
         squaresLimit = data.squares_limit || 5;
 
-        document.getElementById('squaresLimit').textContent = squaresLimit;
+        // Update both admin and public limit displays
+        const limitPublic = document.getElementById('squaresLimitPublic');
+        if (limitPublic) limitPublic.textContent = squaresLimit;
         const limitInput = document.getElementById('squaresLimitInput');
         if (limitInput) limitInput.value = squaresLimit;
 
@@ -469,8 +493,17 @@ function updateStats() {
     const pricePerSquare = parseFloat(gameData.config.price_per_square) || 10;
     const totalCollected = claimedSquares * pricePerSquare;
 
-    document.getElementById('squaresSold').textContent = `${claimedSquares} / 100`;
-    document.getElementById('totalCollected').textContent = `$${totalCollected.toFixed(2)}`;
+    // Update admin stats
+    const squaresSold = document.getElementById('squaresSold');
+    if (squaresSold) squaresSold.textContent = `${claimedSquares} / 100`;
+    const totalCollectedEl = document.getElementById('totalCollected');
+    if (totalCollectedEl) totalCollectedEl.textContent = `$${totalCollected.toFixed(2)}`;
+
+    // Update public stats
+    const squaresSoldPublic = document.getElementById('squaresSoldPublic');
+    if (squaresSoldPublic) squaresSoldPublic.textContent = `${claimedSquares} / 100`;
+    const totalCollectedPublic = document.getElementById('totalCollectedPublic');
+    if (totalCollectedPublic) totalCollectedPublic.textContent = `$${totalCollected.toFixed(2)}`;
 
     // Calculate prize amounts
     const prizeQ1Pct = parseFloat(gameData.config.prize_q1) || 10;
@@ -870,4 +903,24 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Logo preview function
+function previewLogo(team) {
+    const input = document.getElementById(`team${team}Logo`);
+    const preview = document.getElementById(`team${team}LogoPreview`);
+
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+// Logo upload function (placeholder - requires backend implementation)
+function uploadLogo(team) {
+    alert('Logo upload functionality coming soon. For now, logos can be manually placed in the static folder.');
 }

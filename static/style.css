@@ -1459,3 +1459,230 @@ h2 {
         margin-top: 4px;
     }
 }
+
+/* ==========================================
+   Admin Accordion
+   ========================================== */
+
+.hide-for-admin.hidden {
+    display: none !important;
+}
+
+.admin-accordion {
+    margin-top: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.accordion-section {
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+}
+
+.accordion-header {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: var(--color-surface);
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-text);
+    text-align: left;
+    transition: background 0.2s;
+}
+
+.accordion-header:hover {
+    background: var(--color-bg);
+}
+
+.accordion-icon {
+    font-size: 20px;
+    font-weight: 400;
+    color: var(--color-text-muted);
+    transition: transform 0.3s;
+}
+
+.accordion-section.open .accordion-icon {
+    transform: rotate(45deg);
+}
+
+.accordion-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+    padding: 0 20px;
+}
+
+.accordion-section.open .accordion-content {
+    max-height: 1000px;
+    padding: 0 20px 20px;
+}
+
+/* Team Administration */
+.team-admin-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+.team-admin-item {
+    padding: 16px;
+    background: var(--color-bg);
+    border-radius: var(--radius-md);
+}
+
+.team-admin-item h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 12px;
+}
+
+.logo-upload {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.logo-preview {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+}
+
+.logo-preview[src=""],
+.logo-preview:not([src]) {
+    display: none;
+}
+
+/* Admin Grid Controls */
+.admin-grid-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.control-group label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-muted);
+}
+
+.input-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.input-row input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+}
+
+.input-row button {
+    padding: 8px 16px;
+    background: var(--color-blue);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.input-row button:hover {
+    background: var(--color-blue-light);
+}
+
+.admin-stats-row {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 16px;
+    padding: 12px 16px;
+    background: var(--color-bg);
+    border-radius: var(--radius-sm);
+}
+
+.admin-buttons {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.admin-buttons button {
+    padding: 10px 20px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text);
+}
+
+.admin-buttons button:hover {
+    background: var(--color-bg);
+}
+
+.admin-buttons .danger-btn {
+    background: #dc2626;
+    color: white;
+    border-color: #dc2626;
+}
+
+.admin-buttons .danger-btn:hover {
+    background: #b91c1c;
+}
+
+/* Controls inside accordion */
+.accordion-content .controls {
+    display: flex;
+    gap: 12px;
+    margin-top: 0;
+}
+
+.accordion-content .controls button {
+    padding: 10px 20px;
+}
+
+/* Quarters inside accordion */
+.accordion-content .quarters {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+}
+
+@media (max-width: 768px) {
+    .team-admin-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .accordion-content .quarters {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .admin-grid-controls {
+        grid-template-columns: 1fr;
+    }
+}
