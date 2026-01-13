@@ -56,9 +56,19 @@ async function loadGrids() {
 
 function renderGridTabs() {
     const tabsContainer = document.getElementById('gridTabs');
+    const tabsWrapper = document.querySelector('.grid-tabs-container');
     if (!tabsContainer) return;
 
     tabsContainer.innerHTML = '';
+
+    // Hide tabs if only 1 grid and not admin
+    if (gridsData.length <= 1 && !isAdmin) {
+        if (tabsWrapper) tabsWrapper.style.display = 'none';
+        return;
+    }
+
+    // Show tabs container
+    if (tabsWrapper) tabsWrapper.style.display = 'block';
 
     gridsData.forEach(grid => {
         const tab = document.createElement('button');
