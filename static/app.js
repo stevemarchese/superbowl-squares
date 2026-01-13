@@ -186,6 +186,7 @@ async function loadGrid() {
 function renderGrid() {
     const grid = document.getElementById('grid');
     grid.innerHTML = '';
+    const price = parseFloat(gameData.config.price_per_square) || 10;
 
     for (let row = 0; row < 10; row++) {
         for (let col = 0; col < 10; col++) {
@@ -198,6 +199,8 @@ function renderGrid() {
             if (square && square.owner_name) {
                 div.textContent = square.owner_name;
                 div.classList.add('claimed');
+            } else {
+                div.title = `$${price.toFixed(0)} per square`;
             }
 
             div.addEventListener('click', () => handleSquareClick(row, col, square));
