@@ -8,8 +8,13 @@ from datetime import datetime
 from functools import wraps
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
-DATABASE = 'squares.db'
+app.secret_key = os.environ.get('SECRET_KEY', os.urandom(24))
+
+# Use /data for persistent storage on Render, local file otherwise
+if os.path.exists('/data'):
+    DATABASE = '/data/squares.db'
+else:
+    DATABASE = 'squares.db'
 SQUARES_PER_EMAIL_LIMIT = 5
 
 def get_db():
