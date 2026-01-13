@@ -410,6 +410,39 @@ function updateStats() {
 
     document.getElementById('squaresSold').textContent = `${claimedSquares} / 100`;
     document.getElementById('totalCollected').textContent = `$${totalCollected.toFixed(2)}`;
+
+    // Calculate prize amounts
+    const prizeQ1Pct = parseFloat(gameData.config.prize_q1) || 10;
+    const prizeQ2Pct = parseFloat(gameData.config.prize_q2) || 10;
+    const prizeQ3Pct = parseFloat(gameData.config.prize_q3) || 10;
+    const prizeQ4Pct = parseFloat(gameData.config.prize_q4) || 20;
+    const charityPct = 100 - prizeQ1Pct - prizeQ2Pct - prizeQ3Pct - prizeQ4Pct;
+
+    const prizeQ1 = totalCollected * (prizeQ1Pct / 100);
+    const prizeQ2 = totalCollected * (prizeQ2Pct / 100);
+    const prizeQ3 = totalCollected * (prizeQ3Pct / 100);
+    const prizeQ4 = totalCollected * (prizeQ4Pct / 100);
+    const charityAmount = totalCollected * (charityPct / 100);
+
+    // Update prize display
+    document.getElementById('prizeQ1').textContent = `$${prizeQ1.toFixed(0)}`;
+    document.getElementById('prizeQ2').textContent = `$${prizeQ2.toFixed(0)}`;
+    document.getElementById('prizeQ3').textContent = `$${prizeQ3.toFixed(0)}`;
+    document.getElementById('prizeQ4').textContent = `$${prizeQ4.toFixed(0)}`;
+    document.getElementById('charityAmount').textContent = `$${charityAmount.toFixed(0)}`;
+
+    // Update admin prize percentage inputs
+    const q1Input = document.getElementById('prizeQ1Pct');
+    const q2Input = document.getElementById('prizeQ2Pct');
+    const q3Input = document.getElementById('prizeQ3Pct');
+    const q4Input = document.getElementById('prizeQ4Pct');
+    const charityDisplay = document.getElementById('charityPct');
+
+    if (q1Input) q1Input.value = prizeQ1Pct;
+    if (q2Input) q2Input.value = prizeQ2Pct;
+    if (q3Input) q3Input.value = prizeQ3Pct;
+    if (q4Input) q4Input.value = prizeQ4Pct;
+    if (charityDisplay) charityDisplay.textContent = Math.max(0, charityPct).toFixed(0);
 }
 
 async function savePrice() {
@@ -431,6 +464,42 @@ async function savePrice() {
         }
     } catch (error) {
         console.error('Error saving price:', error);
+    }
+}
+
+async function savePrizePercentages() {
+    const prize_q1 = parseFloat(document.getElementById('prizeQ1Pct').value) || 0;
+    const prize_q2 = parseFloat(document.getElementById('prizeQ2Pct').value) || 0;
+    const prize_q3 = parseFloat(document.getElementById('prizeQ3Pct').value) || 0;
+    const prize_q4 = parseFloat(document.getElementById('prizeQ4Pct').value) || 0;
+
+    const total = prize_q1 + prize_q2 + prize_q3 + prize_q4;
+    if (total > 100) {
+        alert('Total prize percentages cannot exceed 100%');
+        return;
+    }
+
+    // Update charity display immediately
+    document.getElementById('charityPct').textContent = (100 - total).toFixed(0);
+
+    try {
+        const response = await fetch('/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prize_q1, prize_q2, prize_q3, prize_q4 })
+        });
+        const result = await response.json();
+        if (result.error) {
+            alert(result.error);
+        } else {
+            gameData.config.prize_q1 = prize_q1;
+            gameData.config.prize_q2 = prize_q2;
+            gameData.config.prize_q3 = prize_q3;
+            gameData.config.prize_q4 = prize_q4;
+            updateStats();
+        }
+    } catch (error) {
+        console.error('Error saving prize percentages:', error);
     }
 }
 

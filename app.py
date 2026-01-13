@@ -72,6 +72,10 @@ def init_db():
             team1_name TEXT DEFAULT 'Team 1',
             team2_name TEXT DEFAULT 'Team 2',
             price_per_square REAL DEFAULT 10.00,
+            prize_q1 REAL DEFAULT 10.0,
+            prize_q2 REAL DEFAULT 10.0,
+            prize_q3 REAL DEFAULT 10.0,
+            prize_q4 REAL DEFAULT 20.0,
             q1_team1 INTEGER,
             q1_team2 INTEGER,
             q2_team1 INTEGER,
@@ -103,6 +107,14 @@ def init_db():
         cursor.execute('ALTER TABLE squares ADD COLUMN owner_email TEXT')
     except sqlite3.OperationalError:
         pass
+
+    # Migration: Add prize percentage columns if not exists
+    for col in ['prize_q1', 'prize_q2', 'prize_q3', 'prize_q4']:
+        try:
+            default = 20.0 if col == 'prize_q4' else 10.0
+            cursor.execute(f'ALTER TABLE game_config ADD COLUMN {col} REAL DEFAULT {default}')
+        except sqlite3.OperationalError:
+            pass
 
     # Create default grid if none exists
     cursor.execute('SELECT COUNT(*) FROM grids')
@@ -441,6 +453,11 @@ def update_config():
         cursor.execute('UPDATE game_config SET team2_name = ? WHERE id = 1', (data['team2_name'],))
     if 'price_per_square' in data:
         cursor.execute('UPDATE game_config SET price_per_square = ? WHERE id = 1', (data['price_per_square'],))
+
+    # Prize percentages
+    for field in ['prize_q1', 'prize_q2', 'prize_q3', 'prize_q4']:
+        if field in data:
+            cursor.execute(f'UPDATE game_config SET {field} = ? WHERE id = 1', (data[field],))
 
     conn.commit()
     conn.close()

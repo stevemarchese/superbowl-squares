@@ -41,6 +41,31 @@
             </div>
         </div>
 
+        <div class="prize-breakdown">
+            <div class="prize-row">
+                <div class="prize-item">
+                    <span class="prize-label">Q1 Prize</span>
+                    <span class="prize-amount" id="prizeQ1">$0</span>
+                </div>
+                <div class="prize-item">
+                    <span class="prize-label">Halftime Prize</span>
+                    <span class="prize-amount" id="prizeQ2">$0</span>
+                </div>
+                <div class="prize-item">
+                    <span class="prize-label">Q3 Prize</span>
+                    <span class="prize-amount" id="prizeQ3">$0</span>
+                </div>
+                <div class="prize-item">
+                    <span class="prize-label">Final Prize</span>
+                    <span class="prize-amount" id="prizeQ4">$0</span>
+                </div>
+            </div>
+            <div class="charity-highlight">
+                <span class="charity-label">Total Funds Raised for Stuyvesant Baseball</span>
+                <span class="charity-amount" id="charityAmount">$0</span>
+            </div>
+        </div>
+
         <div class="team-names admin-only">
             <div class="team-input">
                 <label for="team1">Team 1 (columns):</label>
@@ -100,6 +125,36 @@
         <div class="winners-section" id="winnersSection">
             <h2>Winners</h2>
             <div id="winnersList"></div>
+        </div>
+
+        <div class="prize-config admin-only">
+            <h2>Prize Percentages</h2>
+            <p class="config-note">Set the percentage of total collected for each quarter prize. Remainder goes to charity.</p>
+            <div class="prize-inputs">
+                <div class="prize-input-group">
+                    <label>Q1:</label>
+                    <input type="number" id="prizeQ1Pct" value="10" min="0" max="100" step="1" onchange="savePrizePercentages()">
+                    <span>%</span>
+                </div>
+                <div class="prize-input-group">
+                    <label>Halftime:</label>
+                    <input type="number" id="prizeQ2Pct" value="10" min="0" max="100" step="1" onchange="savePrizePercentages()">
+                    <span>%</span>
+                </div>
+                <div class="prize-input-group">
+                    <label>Q3:</label>
+                    <input type="number" id="prizeQ3Pct" value="10" min="0" max="100" step="1" onchange="savePrizePercentages()">
+                    <span>%</span>
+                </div>
+                <div class="prize-input-group">
+                    <label>Final:</label>
+                    <input type="number" id="prizeQ4Pct" value="20" min="0" max="100" step="1" onchange="savePrizePercentages()">
+                    <span>%</span>
+                </div>
+                <div class="prize-total">
+                    <span>Charity: <strong id="charityPct">50</strong>%</span>
+                </div>
+            </div>
         </div>
 
         <div class="admin-section admin-only">

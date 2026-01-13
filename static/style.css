@@ -198,6 +198,139 @@ body {
     letter-spacing: -0.02em;
 }
 
+/* Prize Breakdown */
+.prize-breakdown {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow-sm);
+}
+
+.prize-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.prize-item {
+    flex: 1;
+    min-width: 100px;
+    text-align: center;
+    padding: 12px;
+    background: var(--color-bg);
+    border-radius: var(--radius-md);
+}
+
+.prize-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-muted);
+    margin-bottom: 4px;
+}
+
+.prize-amount {
+    display: block;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.charity-highlight {
+    background: linear-gradient(135deg, var(--color-blue) 0%, var(--color-blue-light) 100%);
+    color: white;
+    padding: 20px;
+    border-radius: var(--radius-md);
+    text-align: center;
+}
+
+.charity-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.9;
+    margin-bottom: 8px;
+}
+
+.charity-amount {
+    display: block;
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+/* Prize Config (Admin) */
+.prize-config {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow-sm);
+}
+
+.prize-config h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.config-note {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    margin-bottom: 16px;
+}
+
+.prize-inputs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: center;
+}
+
+.prize-input-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.prize-input-group label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-muted);
+}
+
+.prize-input-group input {
+    width: 60px;
+    padding: 6px 8px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    text-align: center;
+}
+
+.prize-input-group span {
+    font-size: 13px;
+    color: var(--color-text-muted);
+}
+
+.prize-total {
+    margin-left: auto;
+    font-size: 14px;
+    color: var(--color-blue);
+    font-weight: 500;
+}
+
+.prize-config.admin-only.visible {
+    display: block !important;
+}
+
 /* Admin Controls */
 .admin-only {
     display: none !important;
