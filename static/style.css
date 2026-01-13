@@ -660,21 +660,16 @@ body {
     background: var(--color-border);
 }
 
-.square[data-price]:not(.claimed):not(.selected):hover::after {
-    content: attr(data-price);
-    position: absolute;
-    bottom: calc(100% + 4px);
-    left: 50%;
-    transform: translateX(-50%);
-    background: var(--color-text);
-    color: white;
-    padding: 4px 8px;
-    border-radius: var(--radius-sm);
-    font-size: 11px;
-    font-weight: 600;
-    white-space: nowrap;
-    z-index: 10;
-    pointer-events: none;
+.square.available {
+    color: var(--color-text-muted);
+    font-size: 10px;
+    font-weight: 500;
+    opacity: 0.6;
+}
+
+.square.available:hover {
+    opacity: 1;
+    color: var(--color-blue);
 }
 
 .square.claimed {
