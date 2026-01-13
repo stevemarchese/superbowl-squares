@@ -114,11 +114,14 @@
         </footer>
     </div>
 
+    <!-- Floating Claim Button -->
+    <button class="claim-selected-btn" id="claimSelectedBtn" onclick="openClaimModalMulti()">Claim Squares</button>
+
     <!-- Claim Modal - Step 1: Enter Details -->
     <div class="modal" id="claimModal">
         <div class="modal-content">
-            <h2>Claim Square</h2>
-            <p class="modal-subtitle">Row <span id="modalRow"></span>, Column <span id="modalCol"></span></p>
+            <h2>Claim <span id="modalSquaresCount">1</span> Square<span id="modalPlural">s</span></h2>
+            <p class="modal-subtitle"><span id="modalSquaresList"></span></p>
             <div class="form-group">
                 <label for="claimName">Your Name</label>
                 <input type="text" id="claimName" placeholder="Enter your name">
@@ -139,7 +142,7 @@
         <div class="modal-content">
             <h2>Confirm Your Selection</h2>
             <div class="confirm-details">
-                <p><strong>Square:</strong> Row <span id="confirmRow"></span>, Column <span id="confirmCol"></span></p>
+                <p><strong>Squares (<span id="confirmSquaresCount">1</span>):</strong> <span id="confirmSquaresList"></span></p>
                 <p><strong>Name:</strong> <span id="confirmName"></span></p>
                 <p><strong>Email:</strong> <span id="confirmEmail"></span></p>
             </div>

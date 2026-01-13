@@ -2,6 +2,7 @@ let gameData = { squares: [], config: {} };
 let isAdmin = false;
 let squaresLimit = 5;
 let selectedSquare = null;
+let selectedSquares = [];
 
 // Initialize the app
 document.addEventListener('DOMContentLoaded', async () => {
@@ -91,24 +92,66 @@ function handleSquareClick(row, col, square) {
         return;
     }
 
-    // Open claim modal for available square
-    openClaimModal(row, col);
+    // Toggle selection for multi-select
+    const existingIndex = selectedSquares.findIndex(s => s.row === row && s.col === col);
+
+    if (existingIndex > -1) {
+        // Deselect
+        selectedSquares.splice(existingIndex, 1);
+    } else {
+        // Select (check limit)
+        if (selectedSquares.length >= squaresLimit) {
+            alert(`You can only select up to ${squaresLimit} squares at a time`);
+            return;
+        }
+        selectedSquares.push({ row, col });
+    }
+
+    updateSelectedDisplay();
+}
+
+function updateSelectedDisplay() {
+    // Update visual state of squares
+    document.querySelectorAll('.square').forEach(div => {
+        const row = parseInt(div.dataset.row);
+        const col = parseInt(div.dataset.col);
+        const isSelected = selectedSquares.some(s => s.row === row && s.col === col);
+        div.classList.toggle('selected', isSelected);
+    });
+
+    // Show/hide claim button
+    const claimBtn = document.getElementById('claimSelectedBtn');
+    if (claimBtn) {
+        claimBtn.style.display = selectedSquares.length > 0 ? 'block' : 'none';
+        claimBtn.textContent = `Claim ${selectedSquares.length} Square${selectedSquares.length !== 1 ? 's' : ''}`;
+    }
+}
+
+function openClaimModalMulti() {
+    if (selectedSquares.length === 0) return;
+
+    const squaresList = selectedSquares.map(s => `Row ${s.row}, Col ${s.col}`).join('; ');
+    document.getElementById('modalSquaresList').textContent = squaresList;
+    document.getElementById('modalSquaresCount').textContent = selectedSquares.length;
+    document.getElementById('claimName').value = localStorage.getItem('lastClaimName') || '';
+    document.getElementById('claimEmail').value = localStorage.getItem('lastClaimEmail') || '';
+    document.getElementById('claimModal').classList.add('active');
+    document.getElementById('claimName').focus();
 }
 
 function openClaimModal(row, col) {
-    selectedSquare = { row, col };
-    document.getElementById('modalRow').textContent = row;
-    document.getElementById('modalCol').textContent = col;
-    document.getElementById('claimName').value = '';
-    document.getElementById('claimEmail').value = '';
-    document.getElementById('claimModal').classList.add('active');
-    document.getElementById('claimName').focus();
+    // Legacy single-select - redirect to multi-select flow
+    selectedSquares = [{ row, col }];
+    updateSelectedDisplay();
+    openClaimModalMulti();
 }
 
 function closeModal() {
     document.getElementById('claimModal').classList.remove('active');
     document.getElementById('confirmModal').classList.remove('active');
     selectedSquare = null;
+    selectedSquares = [];
+    updateSelectedDisplay();
 }
 
 function showConfirmation() {
@@ -124,9 +167,14 @@ function showConfirmation() {
         return;
     }
 
+    // Save for convenience
+    localStorage.setItem('lastClaimName', name);
+    localStorage.setItem('lastClaimEmail', email);
+
     // Show confirmation modal
-    document.getElementById('confirmRow').textContent = selectedSquare.row;
-    document.getElementById('confirmCol').textContent = selectedSquare.col;
+    const squaresList = selectedSquares.map(s => `Row ${s.row}, Col ${s.col}`).join('; ');
+    document.getElementById('confirmSquaresList').textContent = squaresList;
+    document.getElementById('confirmSquaresCount').textContent = selectedSquares.length;
     document.getElementById('confirmName').textContent = name;
     document.getElementById('confirmEmail').textContent = email;
 
@@ -143,32 +191,44 @@ async function submitClaim() {
     const name = document.getElementById('claimName').value.trim();
     const email = document.getElementById('claimEmail').value.trim();
 
-    try {
-        const response = await fetch('/api/claim', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                row: selectedSquare.row,
-                col: selectedSquare.col,
-                name: name,
-                email: email
-            })
-        });
+    let successCount = 0;
+    let errors = [];
 
-        const result = await response.json();
-        if (result.error) {
-            alert(result.error);
-            document.getElementById('confirmModal').classList.remove('active');
-            document.getElementById('claimModal').classList.add('active');
-        } else {
-            closeModal();
-            alert('Square claimed successfully! Thank you for participating.');
-            loadGrid();
+    for (const square of selectedSquares) {
+        try {
+            const response = await fetch('/api/claim', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    row: square.row,
+                    col: square.col,
+                    name: name,
+                    email: email
+                })
+            });
+
+            const result = await response.json();
+            if (result.error) {
+                errors.push(`Row ${square.row}, Col ${square.col}: ${result.error}`);
+            } else {
+                successCount++;
+            }
+        } catch (error) {
+            console.error('Error claiming square:', error);
+            errors.push(`Row ${square.row}, Col ${square.col}: Network error`);
         }
-    } catch (error) {
-        console.error('Error claiming square:', error);
-        alert('Error claiming square. Please try again.');
     }
+
+    closeModal();
+
+    if (successCount > 0) {
+        alert(`Successfully claimed ${successCount} square${successCount !== 1 ? 's' : ''}! Thank you for participating.`);
+    }
+    if (errors.length > 0) {
+        alert(`Some squares could not be claimed:\n${errors.join('\n')}`);
+    }
+
+    loadGrid();
 }
 
 // Admin functions
