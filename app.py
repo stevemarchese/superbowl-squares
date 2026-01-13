@@ -123,6 +123,12 @@ def init_db():
     except sqlite3.OperationalError:
         pass
 
+    # Migration: Add paid column to squares table if not exists
+    try:
+        cursor.execute('ALTER TABLE squares ADD COLUMN paid INTEGER DEFAULT 0')
+    except sqlite3.OperationalError:
+        pass
+
     # Create default grid if none exists
     cursor.execute('SELECT COUNT(*) FROM grids')
     if cursor.fetchone()[0] == 0:
@@ -560,6 +566,129 @@ def admin_delete_grid(grid_id):
     conn.commit()
     conn.close()
     return jsonify({'success': True})
+
+# Admin: Get all participants grouped by email
+@app.route('/api/admin/participants', methods=['GET'])
+@admin_required
+def get_participants():
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Get all claimed squares with owner info
+    cursor.execute('''
+        SELECT s.owner_email, s.owner_name, s.paid, s.grid_id, s.row, s.col, g.name as grid_name
+        FROM squares s
+        JOIN grids g ON s.grid_id = g.id
+        WHERE s.owner_email IS NOT NULL
+        ORDER BY s.owner_email, s.grid_id, s.row, s.col
+    ''')
+
+    rows = cursor.fetchall()
+
+    # Get price per square
+    cursor.execute('SELECT price_per_square FROM game_config WHERE id = 1')
+    config = cursor.fetchone()
+    price_per_square = config['price_per_square'] if config else 10.0
+
+    conn.close()
+
+    # Group by email
+    participants = {}
+    for row in rows:
+        email = row['owner_email']
+        if email not in participants:
+            participants[email] = {
+                'email': email,
+                'name': row['owner_name'],
+                'squares': [],
+                'total_squares': 0,
+                'paid_squares': 0,
+                'amount_owed': 0
+            }
+
+        participants[email]['squares'].append({
+            'grid_id': row['grid_id'],
+            'grid_name': row['grid_name'],
+            'row': row['row'],
+            'col': row['col'],
+            'paid': row['paid']
+        })
+        participants[email]['total_squares'] += 1
+        if row['paid']:
+            participants[email]['paid_squares'] += 1
+
+    # Calculate amounts
+    for p in participants.values():
+        p['amount_owed'] = (p['total_squares'] - p['paid_squares']) * price_per_square
+        p['all_paid'] = p['paid_squares'] == p['total_squares']
+
+    return jsonify({
+        'participants': list(participants.values()),
+        'price_per_square': price_per_square
+    })
+
+# Admin: Toggle paid status for a participant (by email)
+@app.route('/api/admin/participants/toggle-paid', methods=['POST'])
+@admin_required
+def toggle_participant_paid():
+    data = request.get_json()
+    email = data.get('email', '').strip().lower()
+    paid = data.get('paid', True)  # True to mark as paid, False to mark as unpaid
+
+    if not email:
+        return jsonify({'error': 'Email is required'}), 400
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        UPDATE squares SET paid = ? WHERE owner_email = ?
+    ''', (1 if paid else 0, email))
+
+    affected = cursor.rowcount
+    conn.commit()
+    conn.close()
+
+    return jsonify({'success': True, 'affected_squares': affected})
+
+# Admin: Export unpaid participants as CSV
+@app.route('/api/admin/participants/export-unpaid', methods=['GET'])
+@admin_required
+def export_unpaid_participants():
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Get price per square
+    cursor.execute('SELECT price_per_square FROM game_config WHERE id = 1')
+    config = cursor.fetchone()
+    price_per_square = config['price_per_square'] if config else 10.0
+
+    # Get all unpaid squares grouped by email
+    cursor.execute('''
+        SELECT owner_email, owner_name, COUNT(*) as unpaid_squares
+        FROM squares
+        WHERE owner_email IS NOT NULL AND (paid = 0 OR paid IS NULL)
+        GROUP BY owner_email
+        ORDER BY owner_name
+    ''')
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    # Build CSV
+    csv_lines = ['Name,Email,Unpaid Squares,Amount Owed']
+    for row in rows:
+        amount = row['unpaid_squares'] * price_per_square
+        csv_lines.append(f"{row['owner_name']},{row['owner_email']},{row['unpaid_squares']},${amount:.2f}")
+
+    csv_content = '\n'.join(csv_lines)
+
+    from flask import Response
+    return Response(
+        csv_content,
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=unpaid_participants.csv'}
+    )
 
 # Initialize database on module load (works with gunicorn)
 init_db()

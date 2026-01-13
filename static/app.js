@@ -26,6 +26,8 @@ async function checkAdminStatus() {
             document.querySelectorAll('.admin-only').forEach(el => {
                 el.classList.add('visible');
             });
+            // Load participant data for admin
+            loadParticipants();
         }
         // Re-render tabs to show/hide add button
         renderGridTabs();
@@ -773,3 +775,99 @@ document.getElementById('claimEmail')?.addEventListener('keypress', (e) => {
         showConfirmation();
     }
 });
+
+// ==========================================
+// Participant Management Functions
+// ==========================================
+
+async function loadParticipants() {
+    if (!isAdmin) return;
+
+    const container = document.getElementById('participantsList');
+    if (!container) return;
+
+    try {
+        const response = await fetch('/api/admin/participants');
+        const data = await response.json();
+
+        if (data.error) {
+            container.innerHTML = `<p class="error-text">${data.error}</p>`;
+            return;
+        }
+
+        const participants = data.participants || [];
+        const pricePerSquare = data.price_per_square || 10;
+
+        // Update stats
+        const unpaidParticipants = participants.filter(p => !p.all_paid);
+        const totalOwed = participants.reduce((sum, p) => sum + p.amount_owed, 0);
+
+        document.getElementById('participantsCount').textContent = `${participants.length} participant${participants.length !== 1 ? 's' : ''}`;
+        document.getElementById('unpaidCount').textContent = `${unpaidParticipants.length} unpaid`;
+        document.getElementById('totalOwed').textContent = `$${totalOwed.toFixed(2)} outstanding`;
+
+        if (participants.length === 0) {
+            container.innerHTML = '<p class="empty-text">No participants yet</p>';
+            return;
+        }
+
+        // Render participants
+        container.innerHTML = participants.map(p => `
+            <div class="participant-row ${p.all_paid ? 'paid' : 'unpaid'}">
+                <div class="participant-info">
+                    <span class="participant-name">${escapeHtml(p.name)}</span>
+                    <span class="participant-email">${escapeHtml(p.email)}</span>
+                </div>
+                <div class="participant-squares">
+                    ${p.total_squares} square${p.total_squares !== 1 ? 's' : ''}
+                    <span class="amount">($${(p.total_squares * pricePerSquare).toFixed(2)})</span>
+                </div>
+                <div class="participant-status">
+                    ${p.all_paid
+                        ? '<span class="status-badge paid">Paid</span>'
+                        : `<span class="status-badge unpaid">Owes $${p.amount_owed.toFixed(2)}</span>`
+                    }
+                </div>
+                <div class="participant-actions">
+                    <button onclick="togglePaid('${escapeHtml(p.email)}', ${!p.all_paid})" class="${p.all_paid ? 'mark-unpaid-btn' : 'mark-paid-btn'}">
+                        ${p.all_paid ? 'Mark Unpaid' : 'Mark Paid'}
+                    </button>
+                </div>
+            </div>
+        `).join('');
+
+    } catch (error) {
+        console.error('Error loading participants:', error);
+        container.innerHTML = '<p class="error-text">Error loading participants</p>';
+    }
+}
+
+async function togglePaid(email, markAsPaid) {
+    try {
+        const response = await fetch('/api/admin/participants/toggle-paid', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email, paid: markAsPaid })
+        });
+
+        const result = await response.json();
+        if (result.error) {
+            alert(result.error);
+        } else {
+            await loadParticipants();
+        }
+    } catch (error) {
+        console.error('Error toggling paid status:', error);
+        alert('Error updating payment status');
+    }
+}
+
+function exportUnpaid() {
+    window.location.href = '/api/admin/participants/export-unpaid';
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}

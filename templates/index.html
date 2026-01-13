@@ -183,6 +183,23 @@
             </div>
         </div>
 
+        <div class="participants-section admin-only">
+            <h2>Participant Management</h2>
+            <div class="participants-header">
+                <div class="participants-stats">
+                    <span id="participantsCount">0 participants</span>
+                    <span class="stat-divider">|</span>
+                    <span id="unpaidCount">0 unpaid</span>
+                    <span class="stat-divider">|</span>
+                    <span id="totalOwed">$0.00 outstanding</span>
+                </div>
+                <button onclick="exportUnpaid()" class="export-btn">Export Unpaid (CSV)</button>
+            </div>
+            <div class="participants-list" id="participantsList">
+                <p class="loading-text">Loading participants...</p>
+            </div>
+        </div>
+
         <div class="admin-section admin-only">
             <h2>Admin</h2>
             <button onclick="showChangePasswordModal()">Account Settings</button>

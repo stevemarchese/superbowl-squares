@@ -1250,3 +1250,212 @@ h2 {
         grid-template-rows: auto 24px repeat(10, 1fr);
     }
 }
+
+/* ==========================================
+   Participant Management
+   ========================================== */
+
+.participants-section {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    margin-top: 32px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--color-border);
+}
+
+.participants-section h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--color-text);
+}
+
+.participants-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.participants-stats {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    color: var(--color-text-muted);
+}
+
+.stat-divider {
+    color: var(--color-border);
+}
+
+.export-btn {
+    background: var(--color-blue);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.export-btn:hover {
+    background: var(--color-blue-light);
+}
+
+.participants-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.participant-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    gap: 16px;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--color-bg);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+}
+
+.participant-row.paid {
+    border-left: 3px solid #22c55e;
+}
+
+.participant-row.unpaid {
+    border-left: 3px solid #ef4444;
+}
+
+.participant-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.participant-name {
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.participant-email {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.participant-squares {
+    font-size: 13px;
+    color: var(--color-text);
+    white-space: nowrap;
+}
+
+.participant-squares .amount {
+    color: var(--color-text-muted);
+}
+
+.participant-status {
+    min-width: 100px;
+    text-align: center;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-badge.paid {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.status-badge.unpaid {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.participant-actions button {
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid;
+    transition: all 0.2s;
+}
+
+.mark-paid-btn {
+    background: #22c55e;
+    color: white;
+    border-color: #22c55e;
+}
+
+.mark-paid-btn:hover {
+    background: #16a34a;
+    border-color: #16a34a;
+}
+
+.mark-unpaid-btn {
+    background: white;
+    color: var(--color-text-muted);
+    border-color: var(--color-border);
+}
+
+.mark-unpaid-btn:hover {
+    background: var(--color-bg);
+    border-color: var(--color-text-muted);
+}
+
+.loading-text, .empty-text, .error-text {
+    text-align: center;
+    padding: 24px;
+    color: var(--color-text-muted);
+    font-size: 14px;
+}
+
+.error-text {
+    color: #dc2626;
+}
+
+@media (max-width: 768px) {
+    .participants-header {
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch;
+    }
+
+    .participants-stats {
+        justify-content: center;
+    }
+
+    .participant-row {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .participant-status {
+        text-align: left;
+    }
+
+    .participant-actions {
+        margin-top: 4px;
+    }
+}
