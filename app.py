@@ -382,6 +382,8 @@ def reset_game():
     conn.close()
     return jsonify({'success': True})
 
+# Initialize database on module load (works with gunicorn)
+init_db()
+
 if __name__ == '__main__':
-    init_db()
     app.run(debug=True, port=3000)
