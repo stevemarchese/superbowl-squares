@@ -1,0 +1,17 @@
+# Virtual environment
+venv/
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Database (contains user data - don't sync)
+*.db
+
+# Environment variables
+.env
+
+# OS files
+.DS_Store

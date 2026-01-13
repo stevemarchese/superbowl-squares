@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Bowl Squares</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="app-header">
+            <div class="header-left">
+                <div class="brand">
+                    <img src="/static/logo.png" alt="Peglegs Logo" class="logo" id="teamLogo">
+                    <div class="brand-text">
+                        <h1>Super Bowl LX Squares</h1>
+                        <div class="team-title">Stuyvesant Peglegs</div>
+                        <div class="year-subtitle">2026 Fundraiser</div>
+                    </div>
+                </div>
+            </div>
+            <div class="header-right">
+                <span class="squares-limit-info">Limit: <span id="squaresLimit">5</span> squares per person</span>
+                <button onclick="showRulesModal()" class="rules-btn">Rules</button>
+                <button onclick="adminLogout()" class="logout-btn admin-only" id="logoutBtn" style="display:none;">Logout</button>
+            </div>
+        </header>
+
+        <div class="fundraiser-stats">
+            <div class="stat-box admin-only">
+                <label>Price per Square: $</label>
+                <input type="number" id="pricePerSquare" value="10" min="0" step="0.01" onchange="savePrice()">
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">Squares Sold:</span>
+                <span class="stat-value" id="squaresSold">0 / 100</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">Total Collected:</span>
+                <span class="stat-value" id="totalCollected">$0.00</span>
+            </div>
+        </div>
+
+        <div class="team-names admin-only">
+            <div class="team-input">
+                <label for="team1">Team 1 (columns):</label>
+                <input type="text" id="team1" placeholder="Team 1">
+                <button onclick="saveTeamName(1)">Save</button>
+            </div>
+            <div class="team-input">
+                <label for="team2">Team 2 (rows):</label>
+                <input type="text" id="team2" placeholder="Team 2">
+                <button onclick="saveTeamName(2)">Save</button>
+            </div>
+        </div>
+
+        <div class="grid-wrapper">
+            <div class="team1-label" id="team1Label">Team 1</div>
+            <div class="col-numbers" id="colNumbers"></div>
+            <div class="team2-label" id="team2Label">Team 2</div>
+            <div class="row-numbers" id="rowNumbers"></div>
+            <div class="grid" id="grid"></div>
+        </div>
+
+        <div class="controls admin-only">
+            <button onclick="randomizeNumbers()" id="randomizeBtn">Randomize Numbers</button>
+            <button onclick="lockNumbers()" id="lockBtn">Lock Numbers</button>
+        </div>
+
+        <div class="scores-section admin-only">
+            <h2>Scores</h2>
+            <div class="quarters">
+                <div class="quarter">
+                    <h3>Q1</h3>
+                    <input type="number" id="q1_team1" placeholder="Team 1" onchange="saveScores()">
+                    <input type="number" id="q1_team2" placeholder="Team 2" onchange="saveScores()">
+                </div>
+                <div class="quarter">
+                    <h3>Q2</h3>
+                    <input type="number" id="q2_team1" placeholder="Team 1" onchange="saveScores()">
+                    <input type="number" id="q2_team2" placeholder="Team 2" onchange="saveScores()">
+                </div>
+                <div class="quarter">
+                    <h3>Q3</h3>
+                    <input type="number" id="q3_team1" placeholder="Team 1" onchange="saveScores()">
+                    <input type="number" id="q3_team2" placeholder="Team 2" onchange="saveScores()">
+                </div>
+                <div class="quarter">
+                    <h3>Q4 / Final</h3>
+                    <input type="number" id="q4_team1" placeholder="Team 1" onchange="saveScores()">
+                    <input type="number" id="q4_team2" placeholder="Team 2" onchange="saveScores()">
+                </div>
+            </div>
+        </div>
+
+        <div class="winners-section" id="winnersSection">
+            <h2>Winners</h2>
+            <div id="winnersList"></div>
+        </div>
+
+        <div class="admin-section admin-only">
+            <h2>Admin</h2>
+            <button onclick="showChangePasswordModal()">Account Settings</button>
+            <button onclick="resetGame()" class="danger-btn">Reset Game</button>
+        </div>
+
+        <footer class="site-footer">
+            <div class="footer-links">
+                <button onclick="showRulesModal()" class="footer-link">Rules</button>
+                <span class="footer-divider">|</span>
+                <a href="/admin" class="footer-link" id="adminLink">Admin</a>
+            </div>
+            <p>&copy; 2026 Steve Marchese. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <!-- Claim Modal - Step 1: Enter Details -->
+    <div class="modal" id="claimModal">
+        <div class="modal-content">
+            <h2>Claim Square</h2>
+            <p class="modal-subtitle">Row <span id="modalRow"></span>, Column <span id="modalCol"></span></p>
+            <div class="form-group">
+                <label for="claimName">Your Name</label>
+                <input type="text" id="claimName" placeholder="Enter your name">
+            </div>
+            <div class="form-group">
+                <label for="claimEmail">Your Email</label>
+                <input type="email" id="claimEmail" placeholder="Enter your email">
+            </div>
+            <div class="modal-buttons">
+                <button onclick="showConfirmation()">Continue</button>
+                <button onclick="closeModal()" class="cancel-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal - Step 2: Confirm -->
+    <div class="modal" id="confirmModal">
+        <div class="modal-content">
+            <h2>Confirm Your Selection</h2>
+            <div class="confirm-details">
+                <p><strong>Square:</strong> Row <span id="confirmRow"></span>, Column <span id="confirmCol"></span></p>
+                <p><strong>Name:</strong> <span id="confirmName"></span></p>
+                <p><strong>Email:</strong> <span id="confirmEmail"></span></p>
+            </div>
+            <div class="warning-box">
+                <strong>Are you sure?</strong><br>
+                Once selected, you will NOT be able to edit your selection.
+            </div>
+            <div class="modal-buttons">
+                <button onclick="submitClaim()">Confirm Selection</button>
+                <button onclick="backToDetails()" class="cancel-btn">Go Back</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Clear Square Modal -->
+    <div class="modal" id="adminClearModal">
+        <div class="modal-content">
+            <h2>Clear Square</h2>
+            <p>This square is claimed by <strong id="clearOwnerName"></strong></p>
+            <p>Row <span id="clearRow"></span>, Column <span id="clearCol"></span></p>
+            <div class="modal-buttons">
+                <button onclick="adminClearSquare()" class="danger-btn">Clear Square</button>
+                <button onclick="closeAdminModal()" class="cancel-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Credentials Modal -->
+    <div class="modal" id="changePasswordModal">
+        <div class="modal-content">
+            <h2>Account Settings</h2>
+            <div class="error-msg" id="passwordErrorMsg" style="display:none; background:#f44336; color:white; padding:10px; border-radius:5px; margin-bottom:15px;"></div>
+            <div class="success-msg" id="passwordSuccessMsg" style="display:none; background:#4caf50; color:white; padding:10px; border-radius:5px; margin-bottom:15px;"></div>
+            <form id="changePasswordForm">
+                <div class="form-group">
+                    <label for="currentPassword">Current Password (required)</label>
+                    <input type="password" id="currentPassword" required>
+                </div>
+                <hr style="border-color:#444; margin:20px 0;">
+                <div class="form-group">
+                    <label for="newEmail">New Email (leave blank to keep current)</label>
+                    <input type="email" id="newEmail" placeholder="Enter new email">
+                </div>
+                <div class="form-group">
+                    <label for="newPassword">New Password (leave blank to keep current)</label>
+                    <input type="password" id="newPassword" minlength="6" placeholder="Enter new password">
+                </div>
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm New Password</label>
+                    <input type="password" id="confirmPassword" minlength="6" placeholder="Confirm new password">
+                </div>
+                <div class="modal-buttons">
+                    <button type="submit">Save Changes</button>
+                    <button type="button" onclick="closeChangePasswordModal()" class="cancel-btn">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Rules Modal -->
+    <div class="modal" id="rulesModal">
+        <div class="modal-content rules-modal">
+            <button class="modal-close" onclick="closeRulesModal()">&times;</button>
+            <h2>Welcome to Super Bowl LX Squares!</h2>
+            <p class="modal-subtitle">Stuyvesant Peglegs 2026 Fundraiser</p>
+
+            <div class="rules-list">
+                <div class="rule-item">
+                    <span class="rule-number">1</span>
+                    <div class="rule-text">
+                        <strong>Pick Your Squares</strong>
+                        <p>Click any available square on the grid to claim it. You may select up to 5 squares per email address.</p>
+                    </div>
+                </div>
+                <div class="rule-item">
+                    <span class="rule-number">2</span>
+                    <div class="rule-text">
+                        <strong>Enter Your Info</strong>
+                        <p>Provide your name and email to claim a square. Once confirmed, your selection cannot be changed.</p>
+                    </div>
+                </div>
+                <div class="rule-item">
+                    <span class="rule-number">3</span>
+                    <div class="rule-text">
+                        <strong>Numbers Are Randomized</strong>
+                        <p>After all squares are claimed, random numbers (0-9) will be assigned to each row and column.</p>
+                    </div>
+                </div>
+                <div class="rule-item">
+                    <span class="rule-number">4</span>
+                    <div class="rule-text">
+                        <strong>Win Each Quarter</strong>
+                        <p>Winners are determined by the last digit of each team's score at the end of each quarter. Match both digits to win!</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="prizes-section">
+                <h3>Prize Breakdown</h3>
+                <div class="prize-grid">
+                    <div class="prize-item">
+                        <span class="prize-label">1st Quarter</span>
+                        <span class="prize-value">10%</span>
+                    </div>
+                    <div class="prize-item">
+                        <span class="prize-label">Halftime</span>
+                        <span class="prize-value">10%</span>
+                    </div>
+                    <div class="prize-item">
+                        <span class="prize-label">3rd Quarter</span>
+                        <span class="prize-value">10%</span>
+                    </div>
+                    <div class="prize-item">
+                        <span class="prize-label">Final Score</span>
+                        <span class="prize-value">20%</span>
+                    </div>
+                </div>
+                <div class="fundraiser-note">
+                    <strong>50% of all proceeds</strong> go to the Friends of Stuyvesant Baseball to support the Varsity and JV Baseball teams.
+                </div>
+            </div>
+
+            <div class="modal-buttons">
+                <button onclick="closeRulesModal()">Got It!</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+    <script>
+        // Hide logo if it fails to load
+        document.getElementById('teamLogo').onerror = function() {
+            this.classList.add('hidden');
+        };
+
+        // Rules modal functions
+        function showRulesModal() {
+            document.getElementById('rulesModal').classList.add('active');
+        }
+
+        function closeRulesModal() {
+            document.getElementById('rulesModal').classList.remove('active');
+            localStorage.setItem('rulesShown', 'true');
+        }
+
+        // Show rules modal on first visit
+        if (!localStorage.getItem('rulesShown')) {
+            document.getElementById('rulesModal').classList.add('active');
+        }
+
+        // Change password modal functions
+        function showChangePasswordModal() {
+            document.getElementById('changePasswordModal').classList.add('active');
+            document.getElementById('changePasswordForm').reset();
+            document.getElementById('passwordErrorMsg').style.display = 'none';
+            document.getElementById('passwordSuccessMsg').style.display = 'none';
+        }
+
+        function closeChangePasswordModal() {
+            document.getElementById('changePasswordModal').classList.remove('active');
+        }
+
+        document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const errorMsg = document.getElementById('passwordErrorMsg');
+            const successMsg = document.getElementById('passwordSuccessMsg');
+            errorMsg.style.display = 'none';
+            successMsg.style.display = 'none';
+
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newEmail = document.getElementById('newEmail').value.trim();
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            if (!newEmail && !newPassword) {
+                errorMsg.textContent = 'Please enter a new email or password';
+                errorMsg.style.display = 'block';
+                return;
+            }
+
+            if (newPassword && newPassword !== confirmPassword) {
+                errorMsg.textContent = 'New passwords do not match';
+                errorMsg.style.display = 'block';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/admin/change-credentials', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        current_password: currentPassword,
+                        new_email: newEmail,
+                        new_password: newPassword,
+                        confirm_password: confirmPassword
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.error) {
+                    errorMsg.textContent = result.error;
+                    errorMsg.style.display = 'block';
+                } else {
+                    successMsg.textContent = 'Settings updated successfully!';
+                    successMsg.style.display = 'block';
+                    document.getElementById('changePasswordForm').reset();
+                    setTimeout(() => closeChangePasswordModal(), 1500);
+                }
+            } catch (error) {
+                errorMsg.textContent = 'An error occurred. Please try again.';
+                errorMsg.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
