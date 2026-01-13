@@ -528,6 +528,36 @@ body {
     background: var(--color-surface);
 }
 
+.grid-tab-wrapper {
+    position: relative;
+    display: inline-flex;
+}
+
+.grid-delete-btn {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    background: var(--color-primary);
+    color: white;
+    border: 2px solid var(--color-surface);
+    border-radius: 50%;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.8;
+}
+
+.grid-delete-btn:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
 /* Grid */
 .grid-wrapper {
     display: grid;

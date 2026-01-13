@@ -71,10 +71,28 @@ function renderGridTabs() {
     if (tabsWrapper) tabsWrapper.style.display = 'block';
 
     gridsData.forEach(grid => {
-        const tab = document.createElement('button');
-        tab.className = 'grid-tab' + (grid.id === currentGridId ? ' active' : '');
-        tab.textContent = `${grid.name} (${grid.squares_sold}/100)`;
-        tab.onclick = () => switchGrid(grid.id);
+        const tab = document.createElement('div');
+        tab.className = 'grid-tab-wrapper';
+
+        const tabBtn = document.createElement('button');
+        tabBtn.className = 'grid-tab' + (grid.id === currentGridId ? ' active' : '');
+        tabBtn.textContent = `${grid.name} (${grid.squares_sold}/100)`;
+        tabBtn.onclick = () => switchGrid(grid.id);
+        tab.appendChild(tabBtn);
+
+        // Add delete button for admin (except grid 1)
+        if (isAdmin && grid.id !== 1) {
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'grid-delete-btn';
+            deleteBtn.textContent = '×';
+            deleteBtn.title = 'Delete this grid';
+            deleteBtn.onclick = (e) => {
+                e.stopPropagation();
+                deleteGrid(grid.id, grid.name);
+            };
+            tab.appendChild(deleteBtn);
+        }
+
         tabsContainer.appendChild(tab);
     });
 
@@ -94,6 +112,31 @@ async function switchGrid(gridId) {
     selectedSquares = [];
     updateSelectedDisplay();
     await loadGrid();
+}
+
+async function deleteGrid(gridId, gridName) {
+    if (!confirm(`Are you sure you want to delete "${gridName}"? This will remove all squares in this grid and cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/admin/grids/${gridId}`, {
+            method: 'DELETE'
+        });
+        const result = await response.json();
+        if (result.error) {
+            alert(result.error);
+        } else {
+            // If we deleted the current grid, switch to grid 1
+            if (currentGridId === gridId) {
+                currentGridId = 1;
+            }
+            await loadGrids();
+            await loadGrid();
+        }
+    } catch (error) {
+        console.error('Error deleting grid:', error);
+    }
     renderGridTabs();
 }
 
