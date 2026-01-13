@@ -9,7 +9,3 @@ services:
         generateValue: true
       - key: PYTHON_VERSION
         value: 3.11.0
-    disk:
-      name: data
-      mountPath: /data
-      sizeGB: 1
