@@ -160,6 +160,48 @@ body {
     display: flex !important;
 }
 
+/* Quick Steps */
+.quick-steps {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+    padding: 16px;
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+.step-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.step-number {
+    width: 28px;
+    height: 28px;
+    background: var(--color-blue);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.step-text {
+    font-size: 14px;
+    color: var(--color-text);
+}
+
+.step-text strong {
+    color: var(--color-blue);
+}
+
 .admin-link {
     color: var(--color-text-muted);
     text-decoration: none;
