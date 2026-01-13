@@ -25,6 +25,44 @@
             </div>
         </header>
 
+        <div class="team-names admin-only">
+            <div class="team-input">
+                <label for="team1">Team 1 (columns):</label>
+                <input type="text" id="team1" placeholder="Team 1">
+                <button onclick="saveTeamName(1)">Save</button>
+            </div>
+            <div class="team-input">
+                <label for="team2">Team 2 (rows):</label>
+                <input type="text" id="team2" placeholder="Team 2">
+                <button onclick="saveTeamName(2)">Save</button>
+            </div>
+        </div>
+
+        <div class="squares-limit-banner">
+            <span class="limit-text">Limit: <strong><span id="squaresLimit">5</span> squares</strong> per person</span>
+            <div class="limit-control admin-only">
+                <label>Change limit:</label>
+                <input type="number" id="squaresLimitInput" value="5" min="1" max="100" onchange="saveSquaresLimit()">
+            </div>
+        </div>
+
+        <div class="grid-tabs-container">
+            <div class="grid-tabs" id="gridTabs"></div>
+        </div>
+
+        <div class="grid-wrapper">
+            <div class="team1-label" id="team1Label">Team 1</div>
+            <div class="col-numbers" id="colNumbers"></div>
+            <div class="team2-label" id="team2Label">Team 2</div>
+            <div class="row-numbers" id="rowNumbers"></div>
+            <div class="grid" id="grid"></div>
+        </div>
+
+        <div class="controls admin-only">
+            <button onclick="randomizeNumbers()" id="randomizeBtn">Randomize Numbers</button>
+            <button onclick="lockNumbers()" id="lockBtn">Lock Numbers</button>
+        </div>
+
         <div class="fundraiser-stats">
             <div class="stat-box admin-only">
                 <label>Price per Square: $</label>
@@ -63,44 +101,6 @@
                 <span class="charity-label">Total Funds Raised for Stuyvesant Baseball</span>
                 <span class="charity-amount" id="charityAmount">$0</span>
             </div>
-        </div>
-
-        <div class="team-names admin-only">
-            <div class="team-input">
-                <label for="team1">Team 1 (columns):</label>
-                <input type="text" id="team1" placeholder="Team 1">
-                <button onclick="saveTeamName(1)">Save</button>
-            </div>
-            <div class="team-input">
-                <label for="team2">Team 2 (rows):</label>
-                <input type="text" id="team2" placeholder="Team 2">
-                <button onclick="saveTeamName(2)">Save</button>
-            </div>
-        </div>
-
-        <div class="squares-limit-banner">
-            <span class="limit-text">Limit: <strong><span id="squaresLimit">5</span> squares</strong> per person</span>
-            <div class="limit-control admin-only">
-                <label>Change limit:</label>
-                <input type="number" id="squaresLimitInput" value="5" min="1" max="100" onchange="saveSquaresLimit()">
-            </div>
-        </div>
-
-        <div class="grid-tabs-container">
-            <div class="grid-tabs" id="gridTabs"></div>
-        </div>
-
-        <div class="grid-wrapper">
-            <div class="team1-label" id="team1Label">Team 1</div>
-            <div class="col-numbers" id="colNumbers"></div>
-            <div class="team2-label" id="team2Label">Team 2</div>
-            <div class="row-numbers" id="rowNumbers"></div>
-            <div class="grid" id="grid"></div>
-        </div>
-
-        <div class="controls admin-only">
-            <button onclick="randomizeNumbers()" id="randomizeBtn">Randomize Numbers</button>
-            <button onclick="lockNumbers()" id="lockBtn">Lock Numbers</button>
         </div>
 
         <div class="scores-section admin-only">
