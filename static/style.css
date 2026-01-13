@@ -116,6 +116,50 @@ body {
     color: var(--color-text-muted);
 }
 
+/* Squares Limit Banner */
+.squares-limit-banner {
+    background: var(--color-surface);
+    border: 2px solid var(--color-blue);
+    border-radius: var(--radius-md);
+    padding: 12px 20px;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.limit-text {
+    font-size: 15px;
+    color: var(--color-text);
+}
+
+.limit-text strong {
+    color: var(--color-blue);
+}
+
+.limit-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--color-text-muted);
+}
+
+.limit-control input {
+    width: 60px;
+    padding: 4px 8px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    text-align: center;
+}
+
+.limit-control.admin-only.visible {
+    display: flex !important;
+}
+
 .admin-link {
     color: var(--color-text-muted);
     text-decoration: none;

@@ -20,7 +20,6 @@
                 </div>
             </div>
             <div class="header-right">
-                <span class="squares-limit-info">Limit: <span id="squaresLimit">5</span> squares per person</span>
                 <button onclick="showRulesModal()" class="rules-btn">Rules</button>
                 <button onclick="adminLogout()" class="logout-btn admin-only" id="logoutBtn" style="display:none;">Logout</button>
             </div>
@@ -76,6 +75,14 @@
                 <label for="team2">Team 2 (rows):</label>
                 <input type="text" id="team2" placeholder="Team 2">
                 <button onclick="saveTeamName(2)">Save</button>
+            </div>
+        </div>
+
+        <div class="squares-limit-banner">
+            <span class="limit-text">Limit: <strong><span id="squaresLimit">5</span> squares</strong> per person</span>
+            <div class="limit-control admin-only">
+                <label>Change limit:</label>
+                <input type="number" id="squaresLimitInput" value="5" min="1" max="100" onchange="saveSquaresLimit()">
             </div>
         </div>
 

@@ -72,6 +72,7 @@ def init_db():
             team1_name TEXT DEFAULT 'Team 1',
             team2_name TEXT DEFAULT 'Team 2',
             price_per_square REAL DEFAULT 10.00,
+            squares_limit INTEGER DEFAULT 5,
             prize_q1 REAL DEFAULT 10.0,
             prize_q2 REAL DEFAULT 10.0,
             prize_q3 REAL DEFAULT 10.0,
@@ -115,6 +116,12 @@ def init_db():
             cursor.execute(f'ALTER TABLE game_config ADD COLUMN {col} REAL DEFAULT {default}')
         except sqlite3.OperationalError:
             pass
+
+    # Migration: Add squares_limit column if not exists
+    try:
+        cursor.execute('ALTER TABLE game_config ADD COLUMN squares_limit INTEGER DEFAULT 5')
+    except sqlite3.OperationalError:
+        pass
 
     # Create default grid if none exists
     cursor.execute('SELECT COUNT(*) FROM grids')
@@ -330,7 +337,7 @@ def get_grid():
         'squares': squares,
         'config': config,
         'grid_id': grid_id,
-        'squares_limit': SQUARES_PER_EMAIL_LIMIT
+        'squares_limit': config.get('squares_limit', 5)
     })
 
 # Claim a square - no login required
@@ -364,12 +371,17 @@ def claim_square():
         conn.close()
         return jsonify({'error': 'This square is already taken'}), 400
 
+    # Get squares limit from config
+    cursor.execute('SELECT squares_limit FROM game_config WHERE id = 1')
+    limit_row = cursor.fetchone()
+    squares_limit = limit_row['squares_limit'] if limit_row and limit_row['squares_limit'] else 5
+
     # Check email's square limit (across ALL grids)
     cursor.execute('SELECT COUNT(*) FROM squares WHERE owner_email = ?', (email,))
     email_square_count = cursor.fetchone()[0]
-    if email_square_count >= SQUARES_PER_EMAIL_LIMIT:
+    if email_square_count >= squares_limit:
         conn.close()
-        return jsonify({'error': f'This email has already claimed {SQUARES_PER_EMAIL_LIMIT} squares (the maximum allowed)'}), 400
+        return jsonify({'error': f'This email has already claimed {squares_limit} squares (the maximum allowed)'}), 400
 
     # Claim the square
     cursor.execute('''
@@ -453,6 +465,8 @@ def update_config():
         cursor.execute('UPDATE game_config SET team2_name = ? WHERE id = 1', (data['team2_name'],))
     if 'price_per_square' in data:
         cursor.execute('UPDATE game_config SET price_per_square = ? WHERE id = 1', (data['price_per_square'],))
+    if 'squares_limit' in data:
+        cursor.execute('UPDATE game_config SET squares_limit = ? WHERE id = 1', (data['squares_limit'],))
 
     # Prize percentages
     for field in ['prize_q1', 'prize_q2', 'prize_q3', 'prize_q4']:

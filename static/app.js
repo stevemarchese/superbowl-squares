@@ -117,6 +117,8 @@ async function loadGrid() {
         squaresLimit = data.squares_limit || 5;
 
         document.getElementById('squaresLimit').textContent = squaresLimit;
+        const limitInput = document.getElementById('squaresLimitInput');
+        if (limitInput) limitInput.value = squaresLimit;
 
         renderGrid();
         renderNumbers();
@@ -500,6 +502,33 @@ async function savePrizePercentages() {
         }
     } catch (error) {
         console.error('Error saving prize percentages:', error);
+    }
+}
+
+async function saveSquaresLimit() {
+    const input = document.getElementById('squaresLimitInput');
+    const limit = parseInt(input.value) || 5;
+
+    if (limit < 1 || limit > 100) {
+        alert('Limit must be between 1 and 100');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ squares_limit: limit })
+        });
+        const result = await response.json();
+        if (result.error) {
+            alert(result.error);
+        } else {
+            squaresLimit = limit;
+            document.getElementById('squaresLimit').textContent = limit;
+        }
+    } catch (error) {
+        console.error('Error saving squares limit:', error);
     }
 }
 
