@@ -37,28 +37,40 @@ def init_db():
     conn = get_db()
     cursor = conn.cursor()
 
-    # Create squares table with email
+    # Create grids table (each grid has its own numbers)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS grids (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            row_numbers TEXT,
+            col_numbers TEXT,
+            numbers_locked INTEGER DEFAULT 0,
+            created_at TEXT,
+            is_active INTEGER DEFAULT 1
+        )
+    ''')
+
+    # Create squares table with grid_id
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS squares (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            grid_id INTEGER NOT NULL DEFAULT 1,
             row INTEGER NOT NULL,
             col INTEGER NOT NULL,
             owner_name TEXT,
             owner_email TEXT,
             claimed_at TEXT,
-            UNIQUE(row, col)
+            UNIQUE(grid_id, row, col),
+            FOREIGN KEY (grid_id) REFERENCES grids(id)
         )
     ''')
 
-    # Create game_config table
+    # Create game_config table (shared across all grids)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS game_config (
             id INTEGER PRIMARY KEY,
             team1_name TEXT DEFAULT 'Team 1',
             team2_name TEXT DEFAULT 'Team 2',
-            row_numbers TEXT,
-            col_numbers TEXT,
-            numbers_locked INTEGER DEFAULT 0,
             price_per_square REAL DEFAULT 10.00,
             q1_team1 INTEGER,
             q1_team2 INTEGER,
@@ -80,18 +92,48 @@ def init_db():
         )
     ''')
 
-    # Add email column if not exists (for existing databases)
+    # Migration: Add grid_id column if not exists (for existing databases)
+    try:
+        cursor.execute('ALTER TABLE squares ADD COLUMN grid_id INTEGER NOT NULL DEFAULT 1')
+    except sqlite3.OperationalError:
+        pass
+
+    # Migration: Add owner_email column if not exists
     try:
         cursor.execute('ALTER TABLE squares ADD COLUMN owner_email TEXT')
     except sqlite3.OperationalError:
         pass
 
-    # Initialize all 100 squares if not exist
-    for row in range(10):
-        for col in range(10):
+    # Create default grid if none exists
+    cursor.execute('SELECT COUNT(*) FROM grids')
+    if cursor.fetchone()[0] == 0:
+        # Check if we need to migrate from old game_config (has row_numbers column)
+        try:
+            cursor.execute('SELECT row_numbers, col_numbers, numbers_locked FROM game_config WHERE id = 1')
+            old_config = cursor.fetchone()
+            if old_config and old_config[0]:
+                cursor.execute('''
+                    INSERT INTO grids (name, row_numbers, col_numbers, numbers_locked, created_at)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', ('Grid 1', old_config[0], old_config[1], old_config[2], datetime.now().isoformat()))
+            else:
+                cursor.execute('''
+                    INSERT INTO grids (name, created_at) VALUES (?, ?)
+                ''', ('Grid 1', datetime.now().isoformat()))
+        except sqlite3.OperationalError:
+            # Old columns don't exist, create fresh grid
             cursor.execute('''
-                INSERT OR IGNORE INTO squares (row, col) VALUES (?, ?)
-            ''', (row, col))
+                INSERT INTO grids (name, created_at) VALUES (?, ?)
+            ''', ('Grid 1', datetime.now().isoformat()))
+
+    # Initialize all 100 squares for grid 1 if not exist
+    cursor.execute('SELECT COUNT(*) FROM squares WHERE grid_id = 1')
+    if cursor.fetchone()[0] == 0:
+        for row in range(10):
+            for col in range(10):
+                cursor.execute('''
+                    INSERT OR IGNORE INTO squares (grid_id, row, col) VALUES (?, ?, ?)
+                ''', (1, row, col))
 
     # Initialize game config if not exist
     cursor.execute('SELECT COUNT(*) FROM game_config')
@@ -110,6 +152,27 @@ def init_db():
 
     conn.commit()
     conn.close()
+
+def create_grid(name):
+    """Create a new grid and initialize its 100 squares"""
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        INSERT INTO grids (name, created_at) VALUES (?, ?)
+    ''', (name, datetime.now().isoformat()))
+    grid_id = cursor.lastrowid
+
+    # Initialize 100 squares for this grid
+    for row in range(10):
+        for col in range(10):
+            cursor.execute('''
+                INSERT INTO squares (grid_id, row, col) VALUES (?, ?, ?)
+            ''', (grid_id, row, col))
+
+    conn.commit()
+    conn.close()
+    return grid_id
 
 # Main page - no login required
 @app.route('/')
@@ -199,30 +262,62 @@ def change_credentials():
     return jsonify({'success': True, 'email': updated_email})
 
 # Grid API
-@app.route('/api/grid', methods=['GET'])
-def get_grid():
+@app.route('/api/grids', methods=['GET'])
+def get_grids():
+    """Get list of all grids with their square counts"""
     conn = get_db()
     cursor = conn.cursor()
 
-    # Get all squares (don't expose emails to frontend)
-    cursor.execute('SELECT row, col, owner_name, claimed_at FROM squares ORDER BY row, col')
+    cursor.execute('''
+        SELECT g.id, g.name, g.numbers_locked,
+               COUNT(CASE WHEN s.owner_name IS NOT NULL THEN 1 END) as squares_sold
+        FROM grids g
+        LEFT JOIN squares s ON g.id = s.grid_id
+        WHERE g.is_active = 1
+        GROUP BY g.id
+        ORDER BY g.id
+    ''')
+    grids = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return jsonify({'grids': grids})
+
+@app.route('/api/grid', methods=['GET'])
+def get_grid():
+    grid_id = request.args.get('grid_id', 1, type=int)
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Get squares for this grid (don't expose emails to frontend)
+    cursor.execute('''
+        SELECT row, col, owner_name, claimed_at FROM squares
+        WHERE grid_id = ? ORDER BY row, col
+    ''', (grid_id,))
     squares = [dict(row) for row in cursor.fetchall()]
 
-    # Get game config
+    # Get grid-specific config (numbers)
+    cursor.execute('SELECT * FROM grids WHERE id = ?', (grid_id,))
+    grid_row = cursor.fetchone()
+    grid_config = dict(grid_row) if grid_row else {}
+
+    # Get shared game config
     cursor.execute('SELECT * FROM game_config WHERE id = 1')
     config_row = cursor.fetchone()
     config = dict(config_row) if config_row else {}
 
-    # Parse JSON arrays for numbers
-    if config.get('row_numbers'):
-        config['row_numbers'] = json.loads(config['row_numbers'])
-    if config.get('col_numbers'):
-        config['col_numbers'] = json.loads(config['col_numbers'])
+    # Merge grid-specific numbers into config
+    if grid_config.get('row_numbers'):
+        config['row_numbers'] = json.loads(grid_config['row_numbers'])
+    if grid_config.get('col_numbers'):
+        config['col_numbers'] = json.loads(grid_config['col_numbers'])
+    config['numbers_locked'] = grid_config.get('numbers_locked', 0)
+    config['grid_name'] = grid_config.get('name', 'Grid 1')
 
     conn.close()
     return jsonify({
         'squares': squares,
         'config': config,
+        'grid_id': grid_id,
         'squares_limit': SQUARES_PER_EMAIL_LIMIT
     })
 
@@ -230,6 +325,7 @@ def get_grid():
 @app.route('/api/claim', methods=['POST'])
 def claim_square():
     data = request.get_json()
+    grid_id = data.get('grid_id', 1)
     row = data.get('row')
     col = data.get('col')
     name = data.get('name', '').strip()
@@ -249,14 +345,14 @@ def claim_square():
     cursor = conn.cursor()
 
     # Check if square is already claimed
-    cursor.execute('SELECT owner_name FROM squares WHERE row = ? AND col = ?', (row, col))
+    cursor.execute('SELECT owner_name FROM squares WHERE grid_id = ? AND row = ? AND col = ?', (grid_id, row, col))
     result = cursor.fetchone()
 
     if result and result['owner_name']:
         conn.close()
         return jsonify({'error': 'This square is already taken'}), 400
 
-    # Check email's square limit
+    # Check email's square limit (across ALL grids)
     cursor.execute('SELECT COUNT(*) FROM squares WHERE owner_email = ?', (email,))
     email_square_count = cursor.fetchone()[0]
     if email_square_count >= SQUARES_PER_EMAIL_LIMIT:
@@ -265,8 +361,8 @@ def claim_square():
 
     # Claim the square
     cursor.execute('''
-        UPDATE squares SET owner_name = ?, owner_email = ?, claimed_at = ? WHERE row = ? AND col = ?
-    ''', (name, email, datetime.now().isoformat(), row, col))
+        UPDATE squares SET owner_name = ?, owner_email = ?, claimed_at = ? WHERE grid_id = ? AND row = ? AND col = ?
+    ''', (name, email, datetime.now().isoformat(), grid_id, row, col))
 
     conn.commit()
     conn.close()
@@ -277,14 +373,16 @@ def claim_square():
 @admin_required
 def clear_square():
     data = request.get_json()
+    grid_id = data.get('grid_id', 1)
     row = data.get('row')
     col = data.get('col')
 
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute('''
-        UPDATE squares SET owner_name = NULL, owner_email = NULL, claimed_at = NULL WHERE row = ? AND col = ?
-    ''', (row, col))
+        UPDATE squares SET owner_name = NULL, owner_email = NULL, claimed_at = NULL
+        WHERE grid_id = ? AND row = ? AND col = ?
+    ''', (grid_id, row, col))
     conn.commit()
     conn.close()
     return jsonify({'success': True})
@@ -292,10 +390,13 @@ def clear_square():
 @app.route('/api/randomize', methods=['POST'])
 @admin_required
 def randomize_numbers():
+    data = request.get_json()
+    grid_id = data.get('grid_id', 1)
+
     conn = get_db()
     cursor = conn.cursor()
 
-    cursor.execute('SELECT numbers_locked FROM game_config WHERE id = 1')
+    cursor.execute('SELECT numbers_locked FROM grids WHERE id = ?', (grid_id,))
     result = cursor.fetchone()
     if result and result['numbers_locked']:
         conn.close()
@@ -307,8 +408,8 @@ def randomize_numbers():
     random.shuffle(col_numbers)
 
     cursor.execute('''
-        UPDATE game_config SET row_numbers = ?, col_numbers = ? WHERE id = 1
-    ''', (json.dumps(row_numbers), json.dumps(col_numbers)))
+        UPDATE grids SET row_numbers = ?, col_numbers = ? WHERE id = ?
+    ''', (json.dumps(row_numbers), json.dumps(col_numbers), grid_id))
 
     conn.commit()
     conn.close()
@@ -317,9 +418,12 @@ def randomize_numbers():
 @app.route('/api/lock-numbers', methods=['POST'])
 @admin_required
 def lock_numbers():
+    data = request.get_json()
+    grid_id = data.get('grid_id', 1)
+
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute('UPDATE game_config SET numbers_locked = 1 WHERE id = 1')
+    cursor.execute('UPDATE grids SET numbers_locked = 1 WHERE id = ?', (grid_id,))
     conn.commit()
     conn.close()
     return jsonify({'success': True})
@@ -367,16 +471,60 @@ def reset_game():
     conn = get_db()
     cursor = conn.cursor()
 
+    # Clear all squares across all grids
     cursor.execute('UPDATE squares SET owner_name = NULL, owner_email = NULL, claimed_at = NULL')
+
+    # Reset all grids' numbers
+    cursor.execute('UPDATE grids SET row_numbers = NULL, col_numbers = NULL, numbers_locked = 0')
+
+    # Reset scores
     cursor.execute('''
         UPDATE game_config SET
-            row_numbers = NULL, col_numbers = NULL, numbers_locked = 0,
             q1_team1 = NULL, q1_team2 = NULL,
             q2_team1 = NULL, q2_team2 = NULL,
             q3_team1 = NULL, q3_team2 = NULL,
             q4_team1 = NULL, q4_team2 = NULL
         WHERE id = 1
     ''')
+
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+# Admin: Create a new grid
+@app.route('/api/admin/grids', methods=['POST'])
+@admin_required
+def admin_create_grid():
+    data = request.get_json()
+    name = data.get('name', '').strip()
+
+    if not name:
+        # Auto-generate name
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute('SELECT COUNT(*) FROM grids')
+        count = cursor.fetchone()[0]
+        conn.close()
+        name = f'Grid {count + 1}'
+
+    grid_id = create_grid(name)
+    return jsonify({'success': True, 'grid_id': grid_id, 'name': name})
+
+# Admin: Delete a grid
+@app.route('/api/admin/grids/<int:grid_id>', methods=['DELETE'])
+@admin_required
+def admin_delete_grid(grid_id):
+    if grid_id == 1:
+        return jsonify({'error': 'Cannot delete the primary grid'}), 400
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Delete squares for this grid
+    cursor.execute('DELETE FROM squares WHERE grid_id = ?', (grid_id,))
+
+    # Delete the grid
+    cursor.execute('DELETE FROM grids WHERE id = ?', (grid_id,))
 
     conn.commit()
     conn.close()

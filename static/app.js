@@ -3,10 +3,13 @@ let isAdmin = false;
 let squaresLimit = 5;
 let selectedSquare = null;
 let selectedSquares = [];
+let currentGridId = 1;
+let gridsData = [];
 
 // Initialize the app
 document.addEventListener('DOMContentLoaded', async () => {
     await checkAdminStatus();
+    await loadGrids();
     await loadGrid();
 });
 
@@ -24,6 +27,8 @@ async function checkAdminStatus() {
                 el.classList.add('visible');
             });
         }
+        // Re-render tabs to show/hide add button
+        renderGridTabs();
     } catch (error) {
         console.error('Error checking admin status:', error);
     }
@@ -38,9 +43,75 @@ async function adminLogout() {
     }
 }
 
+async function loadGrids() {
+    try {
+        const response = await fetch('/api/grids');
+        const data = await response.json();
+        gridsData = data.grids || [];
+        renderGridTabs();
+    } catch (error) {
+        console.error('Error loading grids:', error);
+    }
+}
+
+function renderGridTabs() {
+    const tabsContainer = document.getElementById('gridTabs');
+    if (!tabsContainer) return;
+
+    tabsContainer.innerHTML = '';
+
+    gridsData.forEach(grid => {
+        const tab = document.createElement('button');
+        tab.className = 'grid-tab' + (grid.id === currentGridId ? ' active' : '');
+        tab.textContent = `${grid.name} (${grid.squares_sold}/100)`;
+        tab.onclick = () => switchGrid(grid.id);
+        tabsContainer.appendChild(tab);
+    });
+
+    // Add "Add Grid" button for admin
+    if (isAdmin) {
+        const addBtn = document.createElement('button');
+        addBtn.className = 'grid-tab add-grid-btn';
+        addBtn.textContent = '+';
+        addBtn.title = 'Add new grid';
+        addBtn.onclick = createNewGrid;
+        tabsContainer.appendChild(addBtn);
+    }
+}
+
+async function switchGrid(gridId) {
+    currentGridId = gridId;
+    selectedSquares = [];
+    updateSelectedDisplay();
+    await loadGrid();
+    renderGridTabs();
+}
+
+async function createNewGrid() {
+    const name = prompt('Enter name for new grid (or leave blank for auto-name):');
+    if (name === null) return; // cancelled
+
+    try {
+        const response = await fetch('/api/admin/grids', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name.trim() })
+        });
+        const result = await response.json();
+        if (result.error) {
+            alert(result.error);
+        } else {
+            await loadGrids();
+            switchGrid(result.grid_id);
+        }
+    } catch (error) {
+        console.error('Error creating grid:', error);
+    }
+}
+
 async function loadGrid() {
     try {
-        const response = await fetch('/api/grid');
+        const response = await fetch(`/api/grid?grid_id=${currentGridId}`);
         const data = await response.json();
         gameData = data;
         squaresLimit = data.squares_limit || 5;
@@ -200,6 +271,7 @@ async function submitClaim() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    grid_id: currentGridId,
                     row: square.row,
                     col: square.col,
                     name: name,
@@ -228,6 +300,7 @@ async function submitClaim() {
         alert(`Some squares could not be claimed:\n${errors.join('\n')}`);
     }
 
+    await loadGrids();
     loadGrid();
 }
 
@@ -251,6 +324,7 @@ async function adminClearSquare() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                grid_id: currentGridId,
                 row: selectedSquare.row,
                 col: selectedSquare.col
             })
@@ -261,6 +335,7 @@ async function adminClearSquare() {
             alert(result.error);
         } else {
             closeAdminModal();
+            await loadGrids();
             loadGrid();
         }
     } catch (error) {
@@ -381,12 +456,16 @@ async function saveTeamName(team) {
 }
 
 async function randomizeNumbers() {
-    if (!confirm('This will assign random numbers 0-9 to each row and column. Continue?')) {
+    if (!confirm('This will assign random numbers 0-9 to each row and column for this grid. Continue?')) {
         return;
     }
 
     try {
-        const response = await fetch('/api/randomize', { method: 'POST' });
+        const response = await fetch('/api/randomize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ grid_id: currentGridId })
+        });
         const result = await response.json();
 
         if (result.error) {
@@ -403,18 +482,23 @@ async function randomizeNumbers() {
 }
 
 async function lockNumbers() {
-    if (!confirm('Once locked, numbers cannot be changed. Are you sure?')) {
+    if (!confirm('Once locked, numbers cannot be changed for this grid. Are you sure?')) {
         return;
     }
 
     try {
-        const response = await fetch('/api/lock-numbers', { method: 'POST' });
+        const response = await fetch('/api/lock-numbers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ grid_id: currentGridId })
+        });
         const result = await response.json();
         if (result.error) {
             alert(result.error);
         } else {
             gameData.config.numbers_locked = true;
             renderNumbers();
+            await loadGrids();
         }
     } catch (error) {
         console.error('Error locking numbers:', error);

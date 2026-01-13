@@ -262,6 +262,53 @@ body {
     transform: none;
 }
 
+/* Grid Tabs */
+.grid-tabs-container {
+    margin-bottom: 16px;
+}
+
+.grid-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.grid-tab {
+    padding: 10px 20px;
+    border: 2px solid var(--color-border);
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.grid-tab:hover {
+    border-color: var(--color-blue-light);
+    color: var(--color-text);
+}
+
+.grid-tab.active {
+    border-color: var(--color-blue);
+    background: var(--color-blue);
+    color: white;
+}
+
+.grid-tab.add-grid-btn {
+    border-style: dashed;
+    color: var(--color-text-muted);
+    font-size: 18px;
+    padding: 10px 16px;
+}
+
+.grid-tab.add-grid-btn:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background: var(--color-surface);
+}
+
 /* Grid */
 .grid-wrapper {
     display: grid;
