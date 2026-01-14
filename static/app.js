@@ -216,6 +216,8 @@ function renderGrid() {
     grid.innerHTML = '';
     const price = parseFloat(gameData.config.price_per_square) || 10;
 
+    const isMobile = window.innerWidth <= 480;
+
     for (let row = 0; row < 10; row++) {
         for (let col = 0; col < 10; col++) {
             const square = gameData.squares.find(s => s.row === row && s.col === col);
@@ -225,12 +227,15 @@ function renderGrid() {
             div.dataset.col = col;
 
             if (square && square.owner_name) {
-                div.textContent = square.owner_name;
+                // On mobile, show initials only
+                div.textContent = isMobile ? getInitials(square.owner_name) : square.owner_name;
                 div.classList.add('claimed');
             } else {
-                div.textContent = `$${price.toFixed(0)}`;
+                // On mobile, show just $ instead of $20
+                const priceDisplay = isMobile ? '$' : `$${price.toFixed(0)}`;
+                div.textContent = priceDisplay;
                 div.classList.add('available');
-                div.dataset.price = `$${price.toFixed(0)}`;
+                div.dataset.price = priceDisplay;
                 // Only show hover effect if claiming is still open
                 if (!gameData.config.numbers_locked || isAdmin) {
                     div.addEventListener('mouseenter', () => {
@@ -248,6 +253,16 @@ function renderGrid() {
             grid.appendChild(div);
         }
     }
+}
+
+// Get first and last initials from a name
+function getInitials(name) {
+    if (!name) return '';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) {
+        return parts[0].charAt(0).toUpperCase();
+    }
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 
 function handleSquareClick(row, col, square) {
