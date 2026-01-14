@@ -164,10 +164,10 @@ body {
 .quick-steps {
     display: flex;
     justify-content: center;
-    gap: 24px;
+    gap: 16px;
     flex-wrap: wrap;
     margin-bottom: 16px;
-    padding: 16px;
+    padding: 12px 16px;
     background: var(--color-surface);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-sm);
@@ -176,12 +176,12 @@ body {
 .step-item {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 6px;
 }
 
 .step-number {
-    width: 28px;
-    height: 28px;
+    width: 22px;
+    height: 22px;
     background: var(--color-blue);
     color: white;
     border-radius: 50%;
@@ -189,12 +189,12 @@ body {
     align-items: center;
     justify-content: center;
     font-weight: 600;
-    font-size: 14px;
+    font-size: 12px;
     flex-shrink: 0;
 }
 
 .step-text {
-    font-size: 14px;
+    font-size: 12px;
     color: var(--color-text);
 }
 
@@ -648,10 +648,11 @@ body {
     font-size: 9px;
     font-weight: 500;
     text-align: center;
-    padding: 4px;
+    padding: 2px;
     transition: all 0.15s ease;
-    overflow: visible;
-    word-break: break-word;
+    overflow: hidden;
+    word-break: break-all;
+    line-height: 1.2;
     color: var(--color-text-muted);
     position: relative;
 }
@@ -670,6 +671,9 @@ body {
 .square.available:hover {
     opacity: 1;
     color: var(--color-blue);
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 1.2;
 }
 
 .square.claimed {
@@ -699,12 +703,20 @@ body {
     background: var(--color-primary-dark);
 }
 
-/* Floating claim button */
-.claim-selected-btn {
+/* Floating claim button container */
+.claim-selected-container {
     position: fixed;
-    bottom: 24px;
+    bottom: 65px;
     left: 50%;
     transform: translateX(-50%);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    z-index: 100;
+}
+
+.claim-selected-btn {
     background: var(--color-primary);
     color: white;
     border: none;
@@ -714,13 +726,42 @@ body {
     border-radius: var(--radius-lg);
     cursor: pointer;
     box-shadow: 0 4px 20px rgba(255, 0, 0, 0.4);
-    z-index: 100;
-    display: none;
 }
 
 .claim-selected-btn:hover {
     background: var(--color-primary-dark);
-    transform: translateX(-50%);
+}
+
+.claim-selected-btn .btn-icon {
+    display: inline-block;
+    margin-left: 8px;
+    font-size: 18px;
+    transition: transform 0.2s;
+}
+
+.claim-selected-btn:hover .btn-icon {
+    transform: translateX(4px);
+}
+
+.claim-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 8px 16px;
+    border-radius: var(--radius-md);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.claim-info span {
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
+
+#claimTotalAmount {
+    font-weight: 600;
+    color: var(--color-text);
 }
 
 /* Controls */
@@ -979,6 +1020,87 @@ h2 {
 
 .confirm-details p:last-child {
     margin-bottom: 0;
+}
+
+.confirm-details .total-owed {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--color-border);
+    font-size: 16px;
+}
+
+.confirm-details .total-owed span {
+    color: var(--color-primary);
+    font-weight: 600;
+}
+
+/* Step label */
+.step-label {
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-blue);
+    margin-bottom: 4px;
+}
+
+/* Payment instructions */
+.payment-instructions {
+    background: var(--color-bg);
+    padding: 16px;
+    border-radius: var(--radius-md);
+    margin-bottom: 16px;
+    text-align: center;
+}
+
+.payment-instructions p {
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: var(--color-text);
+}
+
+.payment-instructions .venmo-handle {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--color-blue);
+    margin: 12px 0;
+}
+
+.payment-instructions .payment-deadline {
+    font-size: 14px;
+    color: var(--color-text);
+    margin-bottom: 0;
+}
+
+.payment-instructions .payment-deadline strong {
+    color: var(--color-primary);
+}
+
+/* Success Modal */
+.success-icon {
+    width: 60px;
+    height: 60px;
+    background: #22c55e;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    margin: 0 auto 16px;
+}
+
+.success-message {
+    text-align: center;
+    font-size: 16px;
+    color: var(--color-text);
+    margin-bottom: 16px;
+}
+
+.total-amount {
+    color: var(--color-primary);
+    font-weight: 600;
+    font-size: 18px;
 }
 
 .warning-box {
@@ -1498,7 +1620,7 @@ h2 {
     transition: background 0.2s;
 }
 
-.accordion-header:hover {
+.accordion-section:not(.open) .accordion-header:hover {
     background: var(--color-bg);
 }
 
@@ -1685,4 +1807,60 @@ h2 {
     .admin-grid-controls {
         grid-template-columns: 1fr;
     }
+}
+
+/* Team logos on grid */
+.team-logo {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+    vertical-align: middle;
+    border-radius: 4px;
+    background: #ffffff;
+    padding: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+/* Rotate logo in team2 label 90 degrees counter-clockwise */
+.team2-label .team-logo {
+    transform: rotate(90deg);
+}
+
+.team1-label, .team2-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    color: white;
+    padding: 10px 14px;
+    border-radius: 6px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.col-numbers, .row-numbers {
+    border-radius: 4px;
+}
+
+.col-numbers .number-cell,
+.row-numbers .number-cell {
+    color: white;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+/* Color picker styling */
+.color-label {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
+
+input[type="color"] {
+    width: 50px;
+    height: 32px;
+    padding: 2px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
 }

@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await checkAdminStatus();
     await loadGrids();
     await loadGrid();
+    await loadLogos();
 });
 
 async function checkAdminStatus() {
@@ -228,6 +229,13 @@ function renderGrid() {
             } else {
                 div.textContent = `$${price.toFixed(0)}`;
                 div.classList.add('available');
+                div.dataset.price = `$${price.toFixed(0)}`;
+                div.addEventListener('mouseenter', () => {
+                    div.innerHTML = 'Click to<br>claim';
+                });
+                div.addEventListener('mouseleave', () => {
+                    div.textContent = div.dataset.price;
+                });
             }
 
             div.addEventListener('click', () => handleSquareClick(row, col, square));
@@ -275,11 +283,28 @@ function updateSelectedDisplay() {
         div.classList.toggle('selected', isSelected);
     });
 
-    // Show/hide claim button
+    // Show/hide claim container and update info
+    const claimContainer = document.getElementById('claimSelectedContainer');
     const claimBtn = document.getElementById('claimSelectedBtn');
+    const claimLimitInfo = document.getElementById('claimLimitInfo');
+    const claimTotalAmount = document.getElementById('claimTotalAmount');
+
+    if (claimContainer) {
+        claimContainer.style.display = selectedSquares.length > 0 ? 'flex' : 'none';
+    }
+
     if (claimBtn) {
-        claimBtn.style.display = selectedSquares.length > 0 ? 'block' : 'none';
-        claimBtn.textContent = `Claim ${selectedSquares.length} Square${selectedSquares.length !== 1 ? 's' : ''}`;
+        claimBtn.innerHTML = `Claim ${selectedSquares.length} Square${selectedSquares.length !== 1 ? 's' : ''} <span class="btn-icon">→</span>`;
+    }
+
+    if (claimLimitInfo) {
+        claimLimitInfo.textContent = `You may claim ${squaresLimit} boxes max (${selectedSquares.length}/${squaresLimit})`;
+    }
+
+    if (claimTotalAmount) {
+        const pricePerSquare = parseFloat(gameData.config?.price_per_square) || 10;
+        const total = selectedSquares.length * pricePerSquare;
+        claimTotalAmount.textContent = `Total: $${total.toFixed(2)}`;
     }
 }
 
@@ -334,6 +359,11 @@ function showConfirmation() {
     document.getElementById('confirmName').textContent = name;
     document.getElementById('confirmEmail').textContent = email;
 
+    // Calculate and show total owed
+    const pricePerSquare = parseFloat(gameData.config?.price_per_square) || 10;
+    const totalOwed = selectedSquares.length * pricePerSquare;
+    document.getElementById('confirmTotalOwed').textContent = `$${totalOwed.toFixed(2)}`;
+
     document.getElementById('claimModal').classList.remove('active');
     document.getElementById('confirmModal').classList.add('active');
 }
@@ -379,7 +409,13 @@ async function submitClaim() {
     closeModal();
 
     if (successCount > 0) {
-        alert(`Successfully claimed ${successCount} square${successCount !== 1 ? 's' : ''}! Thank you for participating.`);
+        // Show success modal with payment info
+        document.getElementById('successSquaresCount').textContent = successCount;
+        document.getElementById('successPlural').textContent = successCount !== 1 ? 's' : '';
+        const pricePerSquare = parseFloat(gameData.config?.price_per_square) || 10;
+        const totalOwed = successCount * pricePerSquare;
+        document.getElementById('successTotalOwed').textContent = `$${totalOwed.toFixed(2)}`;
+        document.getElementById('successModal').classList.add('active');
     }
     if (errors.length > 0) {
         alert(`Some squares could not be claimed:\n${errors.join('\n')}`);
@@ -387,6 +423,10 @@ async function submitClaim() {
 
     await loadGrids();
     loadGrid();
+}
+
+function closeSuccessModal() {
+    document.getElementById('successModal').classList.remove('active');
 }
 
 // Admin functions
@@ -471,8 +511,15 @@ function loadConfig() {
     if (team1Input) team1Input.value = config.team1_name || '';
     if (team2Input) team2Input.value = config.team2_name || '';
 
-    document.getElementById('team1Label').textContent = config.team1_name || 'Team 1';
-    document.getElementById('team2Label').textContent = config.team2_name || 'Team 2';
+    // Store team names for use with logos
+    window.team1Name = config.team1_name || 'Team 1';
+    window.team2Name = config.team2_name || 'Team 2';
+
+    // Update labels (logos will be added by loadLogos)
+    const team1Label = document.getElementById('team1Label');
+    const team2Label = document.getElementById('team2Label');
+    team1Label.textContent = window.team1Name;
+    team2Label.textContent = window.team2Name;
 
     const priceInput = document.getElementById('pricePerSquare');
     if (priceInput && config.price_per_square !== null && config.price_per_square !== undefined) {
@@ -920,7 +967,125 @@ function previewLogo(team) {
     }
 }
 
-// Logo upload function (placeholder - requires backend implementation)
-function uploadLogo(team) {
-    alert('Logo upload functionality coming soon. For now, logos can be manually placed in the static folder.');
+// Logo upload function
+async function uploadLogo(team) {
+    const input = document.getElementById(`team${team}Logo`);
+    if (!input.files || !input.files[0]) {
+        alert('Please select a file first');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('team', team);
+    formData.append('logo', input.files[0]);
+
+    try {
+        const response = await fetch('/api/admin/upload-logo', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+        if (result.error) {
+            alert(result.error);
+        } else {
+            alert('Logo uploaded successfully!');
+            // Update the grid display
+            loadLogos();
+        }
+    } catch (error) {
+        console.error('Error uploading logo:', error);
+        alert('Error uploading logo');
+    }
+}
+
+// Load and display team logos and colors
+async function loadLogos() {
+    try {
+        const response = await fetch('/api/logos');
+        const data = await response.json();
+
+        // Update grid labels with logos
+        const team1Label = document.getElementById('team1Label');
+        const team2Label = document.getElementById('team2Label');
+        const team1Name = window.team1Name || team1Label.textContent || 'Team 1';
+        const team2Name = window.team2Name || team2Label.textContent || 'Team 2';
+
+        if (data.team1_logo) {
+            team1Label.innerHTML = `<img src="${data.team1_logo}" class="team-logo" alt=""><span>${team1Name}</span>`;
+            // Update admin preview
+            const preview1 = document.getElementById('team1LogoPreview');
+            if (preview1) {
+                preview1.src = data.team1_logo;
+                preview1.style.display = 'block';
+            }
+        }
+
+        if (data.team2_logo) {
+            team2Label.innerHTML = `<img src="${data.team2_logo}" class="team-logo" alt=""><span>${team2Name}</span>`;
+            // Update admin preview
+            const preview2 = document.getElementById('team2LogoPreview');
+            if (preview2) {
+                preview2.src = data.team2_logo;
+                preview2.style.display = 'block';
+            }
+        }
+
+        // Apply team colors
+        applyTeamColors(data.team1_color || '#0060aa', data.team2_color || '#cc0000');
+
+        // Update color pickers in admin
+        const color1Input = document.getElementById('team1Color');
+        const color2Input = document.getElementById('team2Color');
+        const color1Label = document.getElementById('team1ColorLabel');
+        const color2Label = document.getElementById('team2ColorLabel');
+
+        if (color1Input) color1Input.value = data.team1_color || '#0060aa';
+        if (color2Input) color2Input.value = data.team2_color || '#cc0000';
+        if (color1Label) color1Label.textContent = data.team1_color || '#0060aa';
+        if (color2Label) color2Label.textContent = data.team2_color || '#cc0000';
+
+    } catch (error) {
+        console.error('Error loading logos:', error);
+    }
+}
+
+// Apply team colors to the grid
+function applyTeamColors(team1Color, team2Color) {
+    const colNumbers = document.getElementById('colNumbers');
+    const rowNumbers = document.getElementById('rowNumbers');
+    const team1Label = document.getElementById('team1Label');
+    const team2Label = document.getElementById('team2Label');
+
+    if (colNumbers) colNumbers.style.backgroundColor = team1Color;
+    if (rowNumbers) rowNumbers.style.backgroundColor = team2Color;
+    if (team1Label) team1Label.style.backgroundColor = team1Color;
+    if (team2Label) team2Label.style.backgroundColor = team2Color;
+}
+
+// Save team color
+async function saveTeamColor(team) {
+    const colorInput = document.getElementById(`team${team}Color`);
+    const colorLabel = document.getElementById(`team${team}ColorLabel`);
+    const color = colorInput.value;
+
+    if (colorLabel) colorLabel.textContent = color;
+
+    try {
+        const response = await fetch('/api/admin/team-color', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ team: String(team), color: color })
+        });
+
+        const result = await response.json();
+        if (result.error) {
+            alert(result.error);
+        } else {
+            // Reload to apply colors
+            loadLogos();
+        }
+    } catch (error) {
+        console.error('Error saving team color:', error);
+    }
 }

@@ -129,6 +129,26 @@ def init_db():
     except sqlite3.OperationalError:
         pass
 
+    # Migration: Add team logo columns to game_config if not exists
+    try:
+        cursor.execute('ALTER TABLE game_config ADD COLUMN team1_logo TEXT')
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute('ALTER TABLE game_config ADD COLUMN team2_logo TEXT')
+    except sqlite3.OperationalError:
+        pass
+
+    # Migration: Add team color columns to game_config if not exists
+    try:
+        cursor.execute("ALTER TABLE game_config ADD COLUMN team1_color TEXT DEFAULT '#0060aa'")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE game_config ADD COLUMN team2_color TEXT DEFAULT '#cc0000'")
+    except sqlite3.OperationalError:
+        pass
+
     # Create default grid if none exists
     cursor.execute('SELECT COUNT(*) FROM grids')
     if cursor.fetchone()[0] == 0:
@@ -565,6 +585,80 @@ def admin_delete_grid(grid_id):
 
     conn.commit()
     conn.close()
+    return jsonify({'success': True})
+
+# Admin: Upload team logo
+@app.route('/api/admin/upload-logo', methods=['POST'])
+@admin_required
+def upload_logo():
+    team = request.form.get('team')
+    if team not in ['1', '2']:
+        return jsonify({'error': 'Invalid team'}), 400
+
+    if 'logo' not in request.files:
+        return jsonify({'error': 'No file uploaded'}), 400
+
+    file = request.files['logo']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+
+    # Read file and convert to base64
+    import base64
+    file_data = file.read()
+
+    # Limit file size (500KB)
+    if len(file_data) > 500 * 1024:
+        return jsonify({'error': 'File too large. Maximum size is 500KB'}), 400
+
+    # Get mime type
+    content_type = file.content_type or 'image/png'
+    base64_data = base64.b64encode(file_data).decode('utf-8')
+    data_url = f"data:{content_type};base64,{base64_data}"
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(f'UPDATE game_config SET team{team}_logo = ? WHERE id = 1', (data_url,))
+    conn.commit()
+    conn.close()
+
+    return jsonify({'success': True, 'logo_url': data_url})
+
+# Admin: Get team logos and colors
+@app.route('/api/logos', methods=['GET'])
+def get_logos():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT team1_logo, team2_logo, team1_color, team2_color FROM game_config WHERE id = 1')
+    row = cursor.fetchone()
+    conn.close()
+
+    return jsonify({
+        'team1_logo': row['team1_logo'] if row else None,
+        'team2_logo': row['team2_logo'] if row else None,
+        'team1_color': row['team1_color'] if row and row['team1_color'] else '#0060aa',
+        'team2_color': row['team2_color'] if row and row['team2_color'] else '#cc0000'
+    })
+
+# Admin: Update team color
+@app.route('/api/admin/team-color', methods=['POST'])
+@admin_required
+def update_team_color():
+    data = request.get_json()
+    team = data.get('team')
+    color = data.get('color')
+
+    if team not in ['1', '2']:
+        return jsonify({'error': 'Invalid team'}), 400
+
+    if not color or not color.startswith('#'):
+        return jsonify({'error': 'Invalid color'}), 400
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(f'UPDATE game_config SET team{team}_color = ? WHERE id = 1', (color,))
+    conn.commit()
+    conn.close()
+
     return jsonify({'success': True})
 
 # Admin: Get all participants grouped by email
