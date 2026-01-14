@@ -2147,6 +2147,15 @@ h2 {
     text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
+@media (max-width: 480px) {
+    .team1-label, .team2-label {
+        font-size: 5px;
+        gap: 0;
+        padding: 4px;
+        text-shadow: none;
+    }
+}
+
 .col-numbers, .row-numbers {
     border-radius: 4px;
 }
