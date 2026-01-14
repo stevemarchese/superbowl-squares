@@ -609,6 +609,10 @@
             // Open clicked item if it wasn't already open
             if (!wasOpen) {
                 item.classList.add('open');
+                // Scroll the item into view on mobile
+                setTimeout(() => {
+                    item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 50);
             }
         }
 

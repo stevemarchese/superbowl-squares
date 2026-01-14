@@ -724,14 +724,19 @@ body {
 }
 
 .square.winner::before {
-    content: '🏆';
+    content: '';
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 28px;
+    width: 32px;
+    height: 32px;
     opacity: 0.3;
     pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23705000'%3E%3Cpath d='M4 2h16v2h-2v2c0 2-1 3-2 4h-1v2h2v2h-2v2h2v2H7v-2h2v-2H7v-2h2v-2H8c-1-1-2-2-2-4V4H4V2zm4 2v2c0 1 0 2 1 3h6c1-1 1-2 1-3V4H8z'/%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
 }
 
 .square.selected {
@@ -1473,16 +1478,119 @@ h2 {
     .modal-content {
         margin: 16px;
     }
+
+    /* Rules modal mobile fixes */
+    .rules-modal {
+        max-width: calc(100vw - 32px);
+        max-height: calc(100vh - 32px);
+        overflow-y: auto;
+        padding: 20px;
+    }
+
+    .rules-modal h2 {
+        font-size: 18px;
+        padding-right: 30px;
+    }
+
+    .rules-modal .modal-subtitle {
+        font-size: 13px;
+        margin-bottom: 12px;
+    }
+
+    .rules-list {
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+
+    .rule-number {
+        width: 24px;
+        height: 24px;
+        font-size: 12px;
+    }
+
+    .rule-text > strong {
+        font-size: 13px;
+    }
+
+    .rule-text p {
+        font-size: 12px;
+    }
+
+    .prize-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .prizes-section {
+        padding: 12px;
+    }
+
+    .prizes-section h3 {
+        font-size: 11px;
+        margin-bottom: 8px;
+    }
+
+    .fundraiser-note {
+        font-size: 12px;
+        padding: 10px;
+    }
+
+    .modal-buttons {
+        margin-top: 16px;
+    }
+
+    .modal-buttons button {
+        padding: 12px 16px;
+        font-size: 14px;
+    }
+
+    /* FAQ modal mobile fixes */
+    .faq-list {
+        max-height: none;
+        overflow-y: visible;
+    }
+
+    .faq-question {
+        padding: 12px 14px;
+        font-size: 13px;
+    }
+
+    .faq-answer {
+        font-size: 12px;
+        padding: 0 14px 16px;
+    }
 }
 
 @media (max-width: 480px) {
+    /* Hide logos and images on mobile */
+    .corner-logo {
+        display: none;
+    }
+
+    .team-logo {
+        display: none;
+    }
+
+    /* Shrink team names */
     .team1-label, .team2-label {
-        font-size: 11px;
+        font-size: 10px;
+        gap: 0;
     }
 
     .grid-wrapper {
-        grid-template-columns: auto 24px repeat(10, 1fr);
-        grid-template-rows: auto 24px repeat(10, 1fr);
+        grid-template-columns: auto 20px repeat(10, 1fr);
+        grid-template-rows: auto 20px repeat(10, 1fr);
+    }
+
+    .number-cell {
+        font-size: 9px;
+    }
+
+    .square {
+        font-size: 7px;
+    }
+
+    .square.available {
+        font-size: 8px;
     }
 }
 
