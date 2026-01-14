@@ -21,6 +21,7 @@
             </div>
             <div class="header-right">
                 <button onclick="showRulesModal()" class="rules-btn">Rules</button>
+                <button onclick="showFaqModal()" class="rules-btn">FAQ</button>
                 <button onclick="adminLogout()" class="logout-btn admin-only" id="logoutBtn" style="display:none;">Logout</button>
             </div>
         </header>
@@ -40,11 +41,7 @@
             </div>
             <div class="step-item">
                 <span class="step-number">4</span>
-                <span class="step-text">Win Each Quarter</span>
-            </div>
-            <div class="step-item">
-                <span class="step-number">5</span>
-                <span class="step-text">Support A Great Cause</span>
+                <span class="step-text">Come Back on Feb 8th!</span>
             </div>
         </div>
 
@@ -314,6 +311,8 @@
             <div class="footer-links">
                 <button onclick="showRulesModal()" class="footer-link">Rules</button>
                 <span class="footer-divider">|</span>
+                <button onclick="showFaqModal()" class="footer-link">FAQ</button>
+                <span class="footer-divider">|</span>
                 <a href="/admin" class="footer-link" id="adminLink">Admin</a>
             </div>
             <p>&copy; 2026 Steve Marchese. All rights reserved.</p>
@@ -365,6 +364,7 @@
                 <p>Please Venmo your payment to:</p>
                 <p class="venmo-handle">@susan-mui-1</p>
                 <p class="payment-deadline">Payment due by <strong>Friday, February 6</strong></p>
+                <p class="payment-note">Please include the name you used in your box in your Venmo transaction.</p>
             </div>
             <div class="warning-box">
                 Your box will be abandoned and prize money will go to FSB if you do not pay for your box by that date.
@@ -389,6 +389,7 @@
                 <p>Please Venmo your payment to:</p>
                 <p class="venmo-handle">@susan-mui-1</p>
                 <p class="payment-deadline">Payment due by <strong>Friday, February 6</strong></p>
+                <p class="payment-note">Please include the name you used in your box in your Venmo transaction.</p>
             </div>
             <div class="warning-box">
                 Your box will be abandoned and prize money will go to FSB if you do not pay for your box by that date.
@@ -455,7 +456,7 @@
                 <div class="rule-item">
                     <span class="rule-number">1</span>
                     <div class="rule-text">
-                        <strong>Pick Your Squares</strong>
+                        <strong>Claim Your Squares</strong>
                         <p>Click any available square on the grid to claim it. You may select up to 5 squares per email address.</p>
                     </div>
                 </div>
@@ -469,15 +470,15 @@
                 <div class="rule-item">
                     <span class="rule-number">3</span>
                     <div class="rule-text">
-                        <strong>Numbers Are Randomized</strong>
-                        <p>After all squares are claimed, random numbers (0-9) will be assigned to each row and column.</p>
+                        <strong>Pay for Your Squares</strong>
+                        <p>Venmo your payment to <strong>@susan-mui-1</strong> by <strong>Friday, February 6</strong>. Include your name in the transaction. Unpaid squares will be released.</p>
                     </div>
                 </div>
                 <div class="rule-item">
                     <span class="rule-number">4</span>
                     <div class="rule-text">
-                        <strong>Win Each Quarter</strong>
-                        <p>Winners are determined by the last digit of each team's score at the end of each quarter. Match both digits to win!</p>
+                        <strong>Come Back At Game Time Feb 8th!</strong>
+                        <p>After all squares are claimed, random numbers (0-9) will be assigned to each row and column. Winners are determined by the last digit of each team's score at the end of each quarter. Match both digits to win. You can win all 4 quarters, so good luck!</p>
                     </div>
                 </div>
             </div>
@@ -513,6 +514,54 @@
         </div>
     </div>
 
+    <!-- FAQ Modal -->
+    <div class="modal" id="faqModal">
+        <div class="modal-content rules-modal">
+            <button class="modal-close" onclick="closeFaqModal()">&times;</button>
+            <h2>Frequently Asked Questions</h2>
+            <p class="modal-subtitle">Super Bowl Squares FAQ</p>
+
+            <div class="faq-list">
+                <div class="faq-item" onclick="toggleFaq(this)">
+                    <div class="faq-question">How do Super Bowl Squares work? <span class="faq-icon">+</span></div>
+                    <div class="faq-answer">Each square on the 10x10 grid represents a unique combination of the last digit of each team's score. After all squares are claimed, random numbers (0-9) are assigned to each row and column. At the end of each quarter, if the last digits of the scores match your square, you win!</div>
+                </div>
+                <div class="faq-item" onclick="toggleFaq(this)">
+                    <div class="faq-question">How much does each square cost? <span class="faq-icon">+</span></div>
+                    <div class="faq-answer">Each square costs $20. You can claim up to 5 squares per email address.</div>
+                </div>
+                <div class="faq-item" onclick="toggleFaq(this)">
+                    <div class="faq-question">How do I pay for my squares? <span class="faq-icon">+</span></div>
+                    <div class="faq-answer">After claiming your squares, please Venmo your payment to <strong>@susan-mui-1</strong>. Payment is due by <strong>Friday, February 6</strong>. Please make sure to put the name you used in your box in your Venmo transaction. Unpaid squares will be released.</div>
+                </div>
+                <div class="faq-item" onclick="toggleFaq(this)">
+                    <div class="faq-question">When are the numbers assigned? <span class="faq-icon">+</span></div>
+                    <div class="faq-answer">The row and column numbers are randomly assigned after all squares have been claimed and paid for. This ensures fair and random distribution.</div>
+                </div>
+                <div class="faq-item" onclick="toggleFaq(this)">
+                    <div class="faq-question">How are winners determined? <span class="faq-icon">+</span></div>
+                    <div class="faq-answer">At the end of each quarter, we look at the last digit of each team's score. The square where those two numbers intersect is the winner. For example, if the score is Chiefs 17, Eagles 14, the winning square is where column 7 meets row 4.</div>
+                </div>
+                <div class="faq-item" onclick="toggleFaq(this)">
+                    <div class="faq-question">What are the prizes? <span class="faq-icon">+</span></div>
+                    <div class="faq-answer">Prizes are 10% of the pot for Q1, Q2 (halftime), and Q3, and 20% for the final score. The remaining 50% goes to Friends of Stuyvesant Baseball.</div>
+                </div>
+                <div class="faq-item" onclick="toggleFaq(this)">
+                    <div class="faq-question">Can I change my squares after claiming? <span class="faq-icon">+</span></div>
+                    <div class="faq-answer">No, once you confirm your selection, it cannot be changed. Please review your choices carefully before confirming.</div>
+                </div>
+                <div class="faq-item" onclick="toggleFaq(this)">
+                    <div class="faq-question">What is Friends of Stuyvesant Baseball? <span class="faq-icon">+</span></div>
+                    <div class="faq-answer">The purpose of Friends of Stuyvesant Baseball, Inc. (FSB), is to support the junior varsity and varsity baseball teams for Stuyvesant High School, a public school in New York City. FSB supports these teams by raising and distributing funds and promoting interest in the teams. FSB is a nonprofit 501(c)(3) corporation, organized and operated for public and charitable purposes, not for the private gain of any person. The IRS ruling granting Friends of Stuyvesant Baseball 501(c)(3) status was issued in February of 2010.</div>
+                </div>
+            </div>
+
+            <div class="modal-buttons">
+                <button onclick="closeFaqModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script src="/static/app.js"></script>
     <script>
         // Hide logo if it fails to load
@@ -533,6 +582,27 @@
         // Show rules modal on first visit
         if (!localStorage.getItem('rulesShown')) {
             document.getElementById('rulesModal').classList.add('active');
+        }
+
+        // FAQ modal functions
+        function showFaqModal() {
+            document.getElementById('faqModal').classList.add('active');
+        }
+
+        function closeFaqModal() {
+            document.getElementById('faqModal').classList.remove('active');
+        }
+
+        function toggleFaq(item) {
+            const wasOpen = item.classList.contains('open');
+            // Close all FAQ items
+            document.querySelectorAll('.faq-item').forEach(faq => {
+                faq.classList.remove('open');
+            });
+            // Open clicked item if it wasn't already open
+            if (!wasOpen) {
+                item.classList.add('open');
+            }
         }
 
         // Change password modal functions
