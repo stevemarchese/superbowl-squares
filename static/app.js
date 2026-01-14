@@ -231,12 +231,17 @@ function renderGrid() {
                 div.textContent = `$${price.toFixed(0)}`;
                 div.classList.add('available');
                 div.dataset.price = `$${price.toFixed(0)}`;
-                div.addEventListener('mouseenter', () => {
-                    div.innerHTML = 'Click to<br>claim';
-                });
-                div.addEventListener('mouseleave', () => {
-                    div.textContent = div.dataset.price;
-                });
+                // Only show hover effect if claiming is still open
+                if (!gameData.config.numbers_locked || isAdmin) {
+                    div.addEventListener('mouseenter', () => {
+                        div.innerHTML = 'Click to<br>claim';
+                    });
+                    div.addEventListener('mouseleave', () => {
+                        div.textContent = div.dataset.price;
+                    });
+                } else {
+                    div.classList.add('locked');
+                }
             }
 
             div.addEventListener('click', () => handleSquareClick(row, col, square));
@@ -246,6 +251,12 @@ function renderGrid() {
 }
 
 function handleSquareClick(row, col, square) {
+    // Disable claiming once numbers are locked (except for admin)
+    if (gameData.config.numbers_locked && !isAdmin) {
+        alert('Claiming is closed. Numbers have been locked.');
+        return;
+    }
+
     if (square && square.owner_name) {
         // Square is claimed
         if (isAdmin) {
@@ -534,6 +545,52 @@ function loadConfig() {
             input.value = config[field];
         }
     });
+
+    // Load show_winners toggle state
+    const showWinnersToggle = document.getElementById('showWinnersToggle');
+    if (showWinnersToggle) {
+        showWinnersToggle.checked = config.show_winners === 1;
+    }
+
+    // Show/hide winners section based on config
+    updateWinnersVisibility();
+
+    // Hide claim container if numbers are locked (for non-admin)
+    updateClaimContainerVisibility();
+}
+
+function updateClaimContainerVisibility() {
+    const claimContainer = document.getElementById('claimSelectedContainer');
+    if (claimContainer && gameData.config.numbers_locked && !isAdmin) {
+        claimContainer.style.display = 'none';
+    }
+}
+
+function updateWinnersVisibility() {
+    const winnersSection = document.getElementById('winnersSection');
+    if (winnersSection) {
+        winnersSection.style.display = gameData.config.show_winners === 1 ? 'block' : 'none';
+    }
+}
+
+async function toggleShowWinners() {
+    const showWinnersToggle = document.getElementById('showWinnersToggle');
+    const showWinners = showWinnersToggle.checked;
+
+    try {
+        const response = await fetch('/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ show_winners: showWinners })
+        });
+
+        if (response.ok) {
+            gameData.config.show_winners = showWinners ? 1 : 0;
+            updateWinnersVisibility();
+        }
+    } catch (error) {
+        console.error('Error toggling show winners:', error);
+    }
 }
 
 function updateStats() {

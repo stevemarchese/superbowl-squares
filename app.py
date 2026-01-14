@@ -149,6 +149,12 @@ def init_db():
     except sqlite3.OperationalError:
         pass
 
+    # Migration: Add show_winners column to game_config if not exists
+    try:
+        cursor.execute('ALTER TABLE game_config ADD COLUMN show_winners INTEGER DEFAULT 0')
+    except sqlite3.OperationalError:
+        pass
+
     # Create default grid if none exists
     cursor.execute('SELECT COUNT(*) FROM grids')
     if cursor.fetchone()[0] == 0:
@@ -493,6 +499,8 @@ def update_config():
         cursor.execute('UPDATE game_config SET price_per_square = ? WHERE id = 1', (data['price_per_square'],))
     if 'squares_limit' in data:
         cursor.execute('UPDATE game_config SET squares_limit = ? WHERE id = 1', (data['squares_limit'],))
+    if 'show_winners' in data:
+        cursor.execute('UPDATE game_config SET show_winners = ? WHERE id = 1', (1 if data['show_winners'] else 0,))
 
     # Prize percentages
     for field in ['prize_q1', 'prize_q2', 'prize_q3', 'prize_q4']:

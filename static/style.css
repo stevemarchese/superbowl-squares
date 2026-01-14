@@ -693,6 +693,17 @@ body {
     line-height: 1.2;
 }
 
+.square.available.locked {
+    cursor: not-allowed;
+}
+
+.square.available.locked:hover {
+    opacity: 0.6;
+    color: var(--color-text-muted);
+    font-size: 10px;
+    font-weight: 500;
+}
+
 .square.claimed {
     background: var(--color-blue);
     color: white;
@@ -708,6 +719,19 @@ body {
     color: var(--color-text);
     font-weight: 600;
     box-shadow: 0 0 0 2px var(--color-gold), 0 0 12px rgba(212, 175, 55, 0.4);
+    position: relative;
+    overflow: hidden;
+}
+
+.square.winner::before {
+    content: '🏆';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 28px;
+    opacity: 0.3;
+    pointer-events: none;
 }
 
 .square.selected {
@@ -1920,6 +1944,35 @@ h2 {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 16px;
+}
+
+/* Winners toggle */
+.winners-toggle {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--color-border);
+}
+
+.toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text);
+}
+
+.toggle-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.toggle-hint {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    margin: 4px 0 0 28px;
 }
 
 @media (max-width: 768px) {

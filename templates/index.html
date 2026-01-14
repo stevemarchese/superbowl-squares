@@ -61,6 +61,11 @@
             <div class="grid" id="grid"></div>
         </div>
 
+        <div class="winners-section" id="winnersSection" style="display: none;">
+            <h2>Winners</h2>
+            <div id="winnersList"></div>
+        </div>
+
         <div class="fundraiser-stats hide-for-admin">
             <div class="stat-box">
                 <span class="stat-label">Squares Sold:</span>
@@ -95,11 +100,6 @@
                 <span class="charity-label">Total Funds Raised for Stuyvesant Baseball</span>
                 <span class="charity-amount" id="charityAmount">$0</span>
             </div>
-        </div>
-
-        <div class="winners-section" id="winnersSection">
-            <h2>Winners</h2>
-            <div id="winnersList"></div>
         </div>
 
         <!-- Admin Accordion Sections -->
@@ -185,6 +185,13 @@
                             <input type="number" id="q4_team1" placeholder="Team 1" onchange="saveScores()">
                             <input type="number" id="q4_team2" placeholder="Team 2" onchange="saveScores()">
                         </div>
+                    </div>
+                    <div class="control-group winners-toggle">
+                        <label class="toggle-label">
+                            <input type="checkbox" id="showWinnersToggle" onchange="toggleShowWinners()">
+                            <span>Show Winners Section</span>
+                        </label>
+                        <p class="toggle-hint">Enable on game day to display winners to visitors</p>
                     </div>
                 </div>
             </div>
