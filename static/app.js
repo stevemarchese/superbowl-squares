@@ -5,6 +5,7 @@ let selectedSquare = null;
 let selectedSquares = [];
 let currentGridId = 1;
 let gridsData = [];
+let participantsFilter = 'all';
 
 // Initialize the app
 document.addEventListener('DOMContentLoaded', async () => {
@@ -891,8 +892,21 @@ async function loadParticipants() {
             return;
         }
 
+        // Filter participants based on current filter
+        let filteredParticipants = participants;
+        if (participantsFilter === 'paid') {
+            filteredParticipants = participants.filter(p => p.all_paid);
+        } else if (participantsFilter === 'unpaid') {
+            filteredParticipants = participants.filter(p => !p.all_paid);
+        }
+
+        if (filteredParticipants.length === 0) {
+            container.innerHTML = `<p class="empty-text">No ${participantsFilter} participants</p>`;
+            return;
+        }
+
         // Render participants
-        container.innerHTML = participants.map(p => `
+        container.innerHTML = filteredParticipants.map(p => `
             <div class="participant-row ${p.all_paid ? 'paid' : 'unpaid'}">
                 <div class="participant-info">
                     <span class="participant-name">${escapeHtml(p.name)}</span>
@@ -920,6 +934,19 @@ async function loadParticipants() {
         console.error('Error loading participants:', error);
         container.innerHTML = '<p class="error-text">Error loading participants</p>';
     }
+}
+
+function filterParticipants(filter) {
+    participantsFilter = filter;
+
+    // Update active button
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+
+    // Reload with new filter
+    loadParticipants();
 }
 
 async function togglePaid(email, markAsPaid) {

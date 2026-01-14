@@ -104,10 +104,10 @@
 
         <!-- Admin Accordion Sections -->
         <div class="admin-accordion admin-only">
-            <!-- Team Administration -->
+            <!-- Team & Score Administration -->
             <div class="accordion-section" id="accordionTeams">
                 <button class="accordion-header" onclick="toggleAccordion('accordionTeams')">
-                    <span>Team Administration</span>
+                    <span>Team & Score Administration</span>
                     <span class="accordion-icon">+</span>
                 </button>
                 <div class="accordion-content">
@@ -163,6 +163,29 @@
                             </div>
                         </div>
                     </div>
+                    <h4 class="section-subtitle">Scores</h4>
+                    <div class="quarters">
+                        <div class="quarter">
+                            <h3>Q1</h3>
+                            <input type="number" id="q1_team1" placeholder="Team 1" onchange="saveScores()">
+                            <input type="number" id="q1_team2" placeholder="Team 2" onchange="saveScores()">
+                        </div>
+                        <div class="quarter">
+                            <h3>Q2</h3>
+                            <input type="number" id="q2_team1" placeholder="Team 1" onchange="saveScores()">
+                            <input type="number" id="q2_team2" placeholder="Team 2" onchange="saveScores()">
+                        </div>
+                        <div class="quarter">
+                            <h3>Q3</h3>
+                            <input type="number" id="q3_team1" placeholder="Team 1" onchange="saveScores()">
+                            <input type="number" id="q3_team2" placeholder="Team 2" onchange="saveScores()">
+                        </div>
+                        <div class="quarter">
+                            <h3>Q4 / Final</h3>
+                            <input type="number" id="q4_team1" placeholder="Team 1" onchange="saveScores()">
+                            <input type="number" id="q4_team2" placeholder="Team 2" onchange="saveScores()">
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -201,38 +224,6 @@
                     <div class="controls">
                         <button onclick="randomizeNumbers()" id="randomizeBtn">Randomize Numbers</button>
                         <button onclick="lockNumbers()" id="lockBtn">Lock Numbers</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Scores -->
-            <div class="accordion-section" id="accordionScores">
-                <button class="accordion-header" onclick="toggleAccordion('accordionScores')">
-                    <span>Scores</span>
-                    <span class="accordion-icon">+</span>
-                </button>
-                <div class="accordion-content">
-                    <div class="quarters">
-                        <div class="quarter">
-                            <h3>Q1</h3>
-                            <input type="number" id="q1_team1" placeholder="Team 1" onchange="saveScores()">
-                            <input type="number" id="q1_team2" placeholder="Team 2" onchange="saveScores()">
-                        </div>
-                        <div class="quarter">
-                            <h3>Q2</h3>
-                            <input type="number" id="q2_team1" placeholder="Team 1" onchange="saveScores()">
-                            <input type="number" id="q2_team2" placeholder="Team 2" onchange="saveScores()">
-                        </div>
-                        <div class="quarter">
-                            <h3>Q3</h3>
-                            <input type="number" id="q3_team1" placeholder="Team 1" onchange="saveScores()">
-                            <input type="number" id="q3_team2" placeholder="Team 2" onchange="saveScores()">
-                        </div>
-                        <div class="quarter">
-                            <h3>Q4 / Final</h3>
-                            <input type="number" id="q4_team1" placeholder="Team 1" onchange="saveScores()">
-                            <input type="number" id="q4_team2" placeholder="Team 2" onchange="saveScores()">
-                        </div>
                     </div>
                 </div>
             </div>
@@ -289,6 +280,11 @@
                             <span id="totalOwed">$0.00 outstanding</span>
                         </div>
                         <button onclick="exportUnpaid()" class="export-btn">Export Unpaid (CSV)</button>
+                    </div>
+                    <div class="participants-filter">
+                        <button class="filter-btn active" onclick="filterParticipants('all')">All</button>
+                        <button class="filter-btn" onclick="filterParticipants('unpaid')">Unpaid</button>
+                        <button class="filter-btn" onclick="filterParticipants('paid')">Paid</button>
                     </div>
                     <div class="participants-list" id="participantsList">
                         <p class="loading-text">Loading participants...</p>

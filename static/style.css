@@ -1430,6 +1430,35 @@ h2 {
     background: var(--color-blue-light);
 }
 
+.participants-filter {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.filter-btn {
+    padding: 6px 16px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.filter-btn:hover {
+    border-color: var(--color-blue);
+    color: var(--color-blue);
+}
+
+.filter-btn.active {
+    background: var(--color-blue);
+    color: white;
+    border-color: var(--color-blue);
+}
+
 .participants-list {
     display: flex;
     flex-direction: column;
@@ -1648,6 +1677,15 @@ h2 {
 }
 
 /* Team Administration */
+.section-subtitle {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text);
+    margin: 24px 0 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--color-border);
+}
+
 .team-admin-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
