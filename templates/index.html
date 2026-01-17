@@ -672,26 +672,31 @@
 
         // Rules modal functions
         function showRulesModal() {
+            lockBodyScroll();
             document.getElementById('rulesModal').classList.add('active');
         }
 
         function closeRulesModal() {
             document.getElementById('rulesModal').classList.remove('active');
+            unlockBodyScroll();
             localStorage.setItem('rulesShown', 'true');
         }
 
         // Show rules modal on first visit
         if (!localStorage.getItem('rulesShown')) {
+            lockBodyScroll();
             document.getElementById('rulesModal').classList.add('active');
         }
 
         // FAQ modal functions
         function showFaqModal() {
+            lockBodyScroll();
             document.getElementById('faqModal').classList.add('active');
         }
 
         function closeFaqModal() {
             document.getElementById('faqModal').classList.remove('active');
+            unlockBodyScroll();
         }
 
         function toggleFaq(item) {
@@ -712,6 +717,7 @@
 
         // Change password modal functions
         function showChangePasswordModal() {
+            lockBodyScroll();
             document.getElementById('changePasswordModal').classList.add('active');
             document.getElementById('changePasswordForm').reset();
             document.getElementById('passwordErrorMsg').style.display = 'none';
@@ -720,6 +726,7 @@
 
         function closeChangePasswordModal() {
             document.getElementById('changePasswordModal').classList.remove('active');
+            unlockBodyScroll();
         }
 
         document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {

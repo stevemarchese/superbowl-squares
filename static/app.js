@@ -6,6 +6,21 @@ let selectedSquares = [];
 let currentGridId = 1;
 let gridsData = [];
 let participantsFilter = 'all';
+let scrollPosition = 0;
+
+// Body scroll lock for modals (prevents iOS viewport issues)
+function lockBodyScroll() {
+    scrollPosition = window.pageYOffset;
+    document.body.classList.add('modal-open');
+    document.body.style.top = `-${scrollPosition}px`;
+}
+
+function unlockBodyScroll() {
+    if (!document.body.classList.contains('modal-open')) return;
+    document.body.classList.remove('modal-open');
+    document.body.style.top = '';
+    window.scrollTo(0, scrollPosition);
+}
 
 // Initialize the app
 document.addEventListener('DOMContentLoaded', async () => {
@@ -384,6 +399,7 @@ function openClaimModalMulti() {
     document.getElementById('claimName').value = localStorage.getItem('lastClaimName') || '';
     document.getElementById('claimEmail').value = localStorage.getItem('lastClaimEmail') || '';
     document.getElementById('claimPlayerName').value = localStorage.getItem('lastClaimPlayerName') || '';
+    lockBodyScroll();
     document.getElementById('claimModal').classList.add('active');
     document.getElementById('claimName').focus();
 }
@@ -398,6 +414,7 @@ function openClaimModal(row, col) {
 function closeModal() {
     document.getElementById('claimModal').classList.remove('active');
     document.getElementById('confirmModal').classList.remove('active');
+    unlockBodyScroll();
     selectedSquare = null;
     selectedSquares = [];
     updateSelectedDisplay();
@@ -508,6 +525,7 @@ async function submitClaim() {
 
 function closeSuccessModal() {
     document.getElementById('successModal').classList.remove('active');
+    unlockBodyScroll();
 }
 
 // Admin functions
@@ -516,11 +534,13 @@ function openAdminClearModal(row, col, ownerName) {
     document.getElementById('clearRow').textContent = row;
     document.getElementById('clearCol').textContent = col;
     document.getElementById('clearOwnerName').textContent = ownerName;
+    lockBodyScroll();
     document.getElementById('adminClearModal').classList.add('active');
 }
 
 function closeAdminModal() {
     document.getElementById('adminClearModal').classList.remove('active');
+    unlockBodyScroll();
     selectedSquare = null;
 }
 

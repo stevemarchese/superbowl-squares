@@ -27,6 +27,10 @@
     --radius-lg: 12px;
 }
 
+html, body {
+    overflow-x: hidden;
+}
+
 body {
     font-family: var(--font-sans);
     background: var(--color-bg);
@@ -34,6 +38,12 @@ body {
     line-height: 1.5;
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
+}
+
+body.modal-open {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
 }
 
 /* Container */
@@ -1315,6 +1325,8 @@ h2 {
     justify-content: center;
     z-index: 1000;
     backdrop-filter: blur(4px);
+    padding: 16px;
+    overflow-y: auto;
 }
 
 .modal.active {
