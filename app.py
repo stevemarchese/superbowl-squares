@@ -155,6 +155,12 @@ def init_db():
     except sqlite3.OperationalError:
         pass
 
+    # Migration: Add player_name column to squares table if not exists
+    try:
+        cursor.execute('ALTER TABLE squares ADD COLUMN player_name TEXT')
+    except sqlite3.OperationalError:
+        pass
+
     # Create default grid if none exists
     cursor.execute('SELECT COUNT(*) FROM grids')
     if cursor.fetchone()[0] == 0:
@@ -381,6 +387,7 @@ def claim_square():
     col = data.get('col')
     name = data.get('name', '').strip()
     email = data.get('email', '').strip().lower()
+    player_name = data.get('player_name', '').strip()
 
     if row is None or col is None:
         return jsonify({'error': 'Row and column required'}), 400
@@ -417,8 +424,8 @@ def claim_square():
 
     # Claim the square
     cursor.execute('''
-        UPDATE squares SET owner_name = ?, owner_email = ?, claimed_at = ? WHERE grid_id = ? AND row = ? AND col = ?
-    ''', (name, email, datetime.now().isoformat(), grid_id, row, col))
+        UPDATE squares SET owner_name = ?, owner_email = ?, player_name = ?, claimed_at = ? WHERE grid_id = ? AND row = ? AND col = ?
+    ''', (name, email, player_name, datetime.now().isoformat(), grid_id, row, col))
 
     conn.commit()
     conn.close()
@@ -436,7 +443,7 @@ def clear_square():
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute('''
-        UPDATE squares SET owner_name = NULL, owner_email = NULL, claimed_at = NULL
+        UPDATE squares SET owner_name = NULL, owner_email = NULL, player_name = NULL, claimed_at = NULL
         WHERE grid_id = ? AND row = ? AND col = ?
     ''', (grid_id, row, col))
     conn.commit()
@@ -537,7 +544,7 @@ def reset_game():
     cursor = conn.cursor()
 
     # Clear all squares across all grids
-    cursor.execute('UPDATE squares SET owner_name = NULL, owner_email = NULL, claimed_at = NULL')
+    cursor.execute('UPDATE squares SET owner_name = NULL, owner_email = NULL, player_name = NULL, claimed_at = NULL')
 
     # Reset all grids' numbers
     cursor.execute('UPDATE grids SET row_numbers = NULL, col_numbers = NULL, numbers_locked = 0')
@@ -678,7 +685,7 @@ def get_participants():
 
     # Get all claimed squares with owner info
     cursor.execute('''
-        SELECT s.owner_email, s.owner_name, s.paid, s.grid_id, s.row, s.col, g.name as grid_name
+        SELECT s.owner_email, s.owner_name, s.player_name, s.paid, s.grid_id, s.row, s.col, g.name as grid_name
         FROM squares s
         JOIN grids g ON s.grid_id = g.id
         WHERE s.owner_email IS NOT NULL
@@ -702,6 +709,7 @@ def get_participants():
             participants[email] = {
                 'email': email,
                 'name': row['owner_name'],
+                'player_name': row['player_name'],
                 'squares': [],
                 'total_squares': 0,
                 'paid_squares': 0,
@@ -767,7 +775,7 @@ def export_unpaid_participants():
 
     # Get all unpaid squares grouped by email
     cursor.execute('''
-        SELECT owner_email, owner_name, COUNT(*) as unpaid_squares
+        SELECT owner_email, owner_name, player_name, COUNT(*) as unpaid_squares
         FROM squares
         WHERE owner_email IS NOT NULL AND (paid = 0 OR paid IS NULL)
         GROUP BY owner_email
@@ -778,10 +786,11 @@ def export_unpaid_participants():
     conn.close()
 
     # Build CSV
-    csv_lines = ['Name,Email,Unpaid Squares,Amount Owed']
+    csv_lines = ['Name,Email,Supporting Player,Unpaid Squares,Amount Owed']
     for row in rows:
         amount = row['unpaid_squares'] * price_per_square
-        csv_lines.append(f"{row['owner_name']},{row['owner_email']},{row['unpaid_squares']},${amount:.2f}")
+        player_name = row['player_name'] if row['player_name'] else ''
+        csv_lines.append(f"{row['owner_name']},{row['owner_email']},{player_name},{row['unpaid_squares']},${amount:.2f}")
 
     csv_content = '\n'.join(csv_lines)
 

@@ -343,6 +343,7 @@ function openClaimModalMulti() {
     document.getElementById('modalSquaresCount').textContent = selectedSquares.length;
     document.getElementById('claimName').value = localStorage.getItem('lastClaimName') || '';
     document.getElementById('claimEmail').value = localStorage.getItem('lastClaimEmail') || '';
+    document.getElementById('claimPlayerName').value = localStorage.getItem('lastClaimPlayerName') || '';
     document.getElementById('claimModal').classList.add('active');
     document.getElementById('claimName').focus();
 }
@@ -365,6 +366,7 @@ function closeModal() {
 function showConfirmation() {
     const name = document.getElementById('claimName').value.trim();
     const email = document.getElementById('claimEmail').value.trim();
+    const playerName = document.getElementById('claimPlayerName').value.trim();
 
     if (!name) {
         alert('Please enter your name');
@@ -378,6 +380,7 @@ function showConfirmation() {
     // Save for convenience
     localStorage.setItem('lastClaimName', name);
     localStorage.setItem('lastClaimEmail', email);
+    localStorage.setItem('lastClaimPlayerName', playerName);
 
     // Show confirmation modal
     const squaresList = selectedSquares.map(s => `Row ${s.row}, Col ${s.col}`).join('; ');
@@ -385,6 +388,15 @@ function showConfirmation() {
     document.getElementById('confirmSquaresCount').textContent = selectedSquares.length;
     document.getElementById('confirmName').textContent = name;
     document.getElementById('confirmEmail').textContent = email;
+
+    // Show player name if provided
+    const confirmPlayerNameRow = document.getElementById('confirmPlayerNameRow');
+    if (playerName) {
+        document.getElementById('confirmPlayerName').textContent = playerName;
+        if (confirmPlayerNameRow) confirmPlayerNameRow.style.display = 'block';
+    } else {
+        if (confirmPlayerNameRow) confirmPlayerNameRow.style.display = 'none';
+    }
 
     // Calculate and show total owed
     const pricePerSquare = parseFloat(gameData.config?.price_per_square) || 10;
@@ -403,6 +415,7 @@ function backToDetails() {
 async function submitClaim() {
     const name = document.getElementById('claimName').value.trim();
     const email = document.getElementById('claimEmail').value.trim();
+    const playerName = document.getElementById('claimPlayerName').value.trim();
 
     let successCount = 0;
     let errors = [];
@@ -417,7 +430,8 @@ async function submitClaim() {
                     row: square.row,
                     col: square.col,
                     name: name,
-                    email: email
+                    email: email,
+                    player_name: playerName
                 })
             });
 
@@ -613,7 +627,7 @@ function updateStats() {
     const pricePerSquare = parseFloat(gameData.config.price_per_square) || 10;
     const totalCollected = claimedSquares * pricePerSquare;
 
-    // Update admin stats
+    // Update admin stats (in Grid Administration accordion)
     const squaresSold = document.getElementById('squaresSold');
     if (squaresSold) squaresSold.textContent = `${claimedSquares} / 100`;
     const totalCollectedEl = document.getElementById('totalCollected');
@@ -644,6 +658,14 @@ function updateStats() {
     document.getElementById('prizeQ3').textContent = `$${prizeQ3.toFixed(0)}`;
     document.getElementById('prizeQ4').textContent = `$${prizeQ4.toFixed(0)}`;
     document.getElementById('charityAmount').textContent = `$${charityAmount.toFixed(0)}`;
+
+    // Update admin fundraiser stats module
+    const squaresSoldAdmin = document.getElementById('squaresSoldAdmin');
+    if (squaresSoldAdmin) squaresSoldAdmin.textContent = `${claimedSquares} / 100`;
+    const totalCollectedAdmin = document.getElementById('totalCollectedAdmin');
+    if (totalCollectedAdmin) totalCollectedAdmin.textContent = `$${totalCollected.toFixed(2)}`;
+    const charityAmountAdmin = document.getElementById('charityAmountAdmin');
+    if (charityAmountAdmin) charityAmountAdmin.textContent = `$${charityAmount.toFixed(2)}`;
 
     // Update admin prize percentage inputs
     const q1Input = document.getElementById('prizeQ1Pct');
@@ -983,6 +1005,7 @@ async function loadParticipants() {
                 <div class="participant-info">
                     <span class="participant-name">${escapeHtml(p.name)}</span>
                     <span class="participant-email">${escapeHtml(p.email)}</span>
+                    ${p.player_name ? `<span class="participant-player">Supporting: ${escapeHtml(p.player_name)}</span>` : ''}
                 </div>
                 <div class="participant-squares">
                     ${p.total_squares} square${p.total_squares !== 1 ? 's' : ''}

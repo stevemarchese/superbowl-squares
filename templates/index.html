@@ -119,6 +119,22 @@
             </div>
         </div>
 
+        <!-- Admin Fundraiser Stats -->
+        <div class="fundraiser-stats admin-only" style="margin-top: 32px;">
+            <div class="stat-box">
+                <span class="stat-label">Squares Sold:</span>
+                <span class="stat-value" id="squaresSoldAdmin">0 / 100</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">Total Collected:</span>
+                <span class="stat-value" id="totalCollectedAdmin">$0.00</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">Total Funds for Stuyvesant Baseball:</span>
+                <span class="stat-value" id="charityAmountAdmin">$0.00</span>
+            </div>
+        </div>
+
         <!-- Admin Accordion Sections -->
         <div class="admin-accordion admin-only">
             <!-- Team & Score Administration -->
@@ -359,12 +375,19 @@
             <h2>Claim <span id="modalSquaresCount">1</span> Square<span id="modalPlural">s</span></h2>
             <p class="modal-subtitle"><span id="modalSquaresList"></span></p>
             <div class="form-group">
-                <label for="claimName">Your Name (max 25 characters)</label>
-                <input type="text" id="claimName" placeholder="Enter your name" maxlength="25">
+                <label for="claimName">Your Name (max 25 characters) <span style="color: var(--color-primary);">*</span></label>
+                <input type="text" id="claimName" placeholder="Enter your name" maxlength="25" required>
             </div>
             <div class="form-group">
-                <label for="claimEmail">Your Email</label>
-                <input type="email" id="claimEmail" placeholder="Enter your email">
+                <label for="claimEmail">Your Email <span style="color: var(--color-primary);">*</span></label>
+                <input type="email" id="claimEmail" placeholder="Enter your email" required>
+            </div>
+            <div class="form-group">
+                <label for="claimPlayerName">
+                    Name of Stuy player you are supporting
+                    <span class="field-hint">(this will help us identify venmo payments)</span>
+                </label>
+                <input type="text" id="claimPlayerName" placeholder="Enter player name (optional)" maxlength="50">
             </div>
             <div class="modal-buttons">
                 <button onclick="showConfirmation()">Continue</button>
@@ -382,6 +405,7 @@
                 <p><strong>Squares (<span id="confirmSquaresCount">1</span>):</strong> <span id="confirmSquaresList"></span></p>
                 <p><strong>Name:</strong> <span id="confirmName"></span></p>
                 <p><strong>Email:</strong> <span id="confirmEmail"></span></p>
+                <p id="confirmPlayerNameRow" style="display: none;"><strong>Supporting Player:</strong> <span id="confirmPlayerName"></span></p>
                 <p class="total-owed"><strong>Total Owed:</strong> <span id="confirmTotalOwed">$0.00</span></p>
             </div>
             <div class="payment-instructions">
