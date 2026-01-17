@@ -761,6 +761,38 @@ def toggle_participant_paid():
 
     return jsonify({'success': True, 'affected_squares': affected})
 
+# Public: Get squares for a specific email (for "Find Your Squares" feature)
+@app.route('/api/my-squares', methods=['GET'])
+def get_my_squares():
+    email = request.args.get('email', '').strip().lower()
+    grid_id = request.args.get('grid_id', 1, type=int)
+
+    if not email:
+        return jsonify({'error': 'Email is required'}), 400
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Get squares owned by this email on the specified grid
+    cursor.execute('''
+        SELECT row, col FROM squares
+        WHERE grid_id = ? AND owner_email = ?
+    ''', (grid_id, email))
+
+    squares = [{'row': row['row'], 'col': row['col']} for row in cursor.fetchall()]
+
+    # Also get total count across all grids for this email
+    cursor.execute('SELECT COUNT(*) FROM squares WHERE owner_email = ?', (email,))
+    total_count = cursor.fetchone()[0]
+
+    conn.close()
+
+    return jsonify({
+        'squares': squares,
+        'count': len(squares),
+        'total_across_grids': total_count
+    })
+
 # Admin: Export unpaid participants as CSV
 @app.route('/api/admin/participants/export-unpaid', methods=['GET'])
 @admin_required

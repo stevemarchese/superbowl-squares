@@ -206,6 +206,7 @@ async function loadGrid() {
         loadConfig();
         updateStats();
         highlightWinners();
+        restoreHighlightedSquares();
     } catch (error) {
         console.error('Error loading grid:', error);
     }
@@ -228,7 +229,12 @@ function renderGrid() {
 
             if (square && square.owner_name) {
                 // On mobile, show initials only
-                div.textContent = isMobile ? getInitials(square.owner_name) : square.owner_name;
+                if (isMobile) {
+                    div.textContent = getInitials(square.owner_name);
+                } else {
+                    // Split name to put first/last on separate lines
+                    div.innerHTML = formatNameForSquare(square.owner_name);
+                }
                 div.classList.add('claimed');
             } else {
                 // On mobile, show just $ instead of $20
@@ -263,6 +269,40 @@ function getInitials(name) {
         return parts[0].charAt(0).toUpperCase();
     }
     return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
+
+// Format name with smart line breaks for squares
+function formatNameForSquare(name) {
+    if (!name) return '';
+    const maxChars = 10;
+    const parts = name.trim().split(/\s+/);
+
+    // Helper to break long words
+    function breakLongWord(word) {
+        if (word.length <= maxChars) return escapeHtml(word);
+        // Break into chunks of maxChars
+        let result = '';
+        for (let i = 0; i < word.length; i += maxChars) {
+            if (i > 0) result += '<br>';
+            result += escapeHtml(word.slice(i, i + maxChars));
+        }
+        return result;
+    }
+
+    if (parts.length === 1) {
+        return breakLongWord(parts[0]);
+    }
+
+    // If first name is short enough, put last name on next line
+    const firstName = parts[0];
+    const lastName = parts.slice(1).join(' ');
+
+    if (firstName.length <= maxChars) {
+        return escapeHtml(firstName) + '<br>' + breakLongWord(lastName);
+    } else {
+        // First name is too long, break it too
+        return breakLongWord(firstName) + '<br>' + breakLongWord(lastName);
+    }
 }
 
 function handleSquareClick(row, col, square) {
@@ -1209,5 +1249,125 @@ async function saveTeamColor(team) {
         }
     } catch (error) {
         console.error('Error saving team color:', error);
+    }
+}
+
+// ==========================================
+// Find Your Squares Functions
+// ==========================================
+
+let highlightedEmail = null;
+
+function toggleFindSquares() {
+    const banner = document.getElementById('findSquaresBanner');
+    banner.classList.toggle('open');
+
+    if (banner.classList.contains('open')) {
+        const emailInput = document.getElementById('findSquaresEmail');
+        emailInput.focus();
+    }
+}
+
+function handleFindSquaresKeypress(event) {
+    if (event.key === 'Enter') {
+        findMySquares();
+    }
+}
+
+async function findMySquares() {
+    const emailInput = document.getElementById('findSquaresEmail');
+    const email = emailInput.value.trim().toLowerCase();
+
+    if (!email || !email.includes('@') || !email.includes('.')) {
+        alert('Please enter a valid email address');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/my-squares?email=${encodeURIComponent(email)}&grid_id=${currentGridId}`);
+        const data = await response.json();
+
+        if (data.error) {
+            alert(data.error);
+            return;
+        }
+
+        // Clear any existing highlights
+        document.querySelectorAll('.square.my-square').forEach(el => {
+            el.classList.remove('my-square');
+        });
+
+        const resultDiv = document.getElementById('findSquaresResult');
+        const resultText = document.getElementById('findSquaresResultText');
+
+        if (data.squares.length === 0) {
+            resultDiv.style.display = 'flex';
+            resultDiv.classList.add('no-squares');
+            resultText.innerHTML = `No squares found for <strong>${escapeHtml(email)}</strong> on this grid`;
+            highlightedEmail = null;
+            localStorage.removeItem('findSquaresEmail');
+        } else {
+            // Highlight the squares
+            data.squares.forEach(sq => {
+                const squareEl = document.querySelector(`.square[data-row="${sq.row}"][data-col="${sq.col}"]`);
+                if (squareEl) {
+                    squareEl.classList.add('my-square');
+                }
+            });
+
+            resultDiv.style.display = 'flex';
+            resultDiv.classList.remove('no-squares');
+
+            let message = `Highlighting <span class="highlight-count">${data.count}</span> square${data.count !== 1 ? 's' : ''}`;
+            if (data.total_across_grids > data.count) {
+                message += ` (${data.total_across_grids} total across all grids)`;
+            }
+            resultText.innerHTML = message;
+
+            highlightedEmail = email;
+            localStorage.setItem('findSquaresEmail', email);
+
+            // Scroll to first highlighted square on mobile
+            if (window.innerWidth <= 480) {
+                const firstHighlighted = document.querySelector('.square.my-square');
+                if (firstHighlighted) {
+                    setTimeout(() => {
+                        firstHighlighted.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 100);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error finding squares:', error);
+        alert('Error finding squares. Please try again.');
+    }
+}
+
+function clearHighlightedSquares() {
+    document.querySelectorAll('.square.my-square').forEach(el => {
+        el.classList.remove('my-square');
+    });
+
+    document.getElementById('findSquaresResult').style.display = 'none';
+    document.getElementById('findSquaresEmail').value = '';
+    highlightedEmail = null;
+    localStorage.removeItem('findSquaresEmail');
+}
+
+// Restore highlighted squares after grid reload
+function restoreHighlightedSquares() {
+    const savedEmail = localStorage.getItem('findSquaresEmail');
+    if (savedEmail && !isAdmin) {
+        const emailInput = document.getElementById('findSquaresEmail');
+        if (emailInput) {
+            emailInput.value = savedEmail;
+            // Auto-find squares after a short delay to ensure grid is loaded
+            setTimeout(() => {
+                findMySquares();
+                // Open the banner to show results
+                const banner = document.getElementById('findSquaresBanner');
+                if (banner) banner.classList.add('open');
+            }, 100);
+        }
     }
 }

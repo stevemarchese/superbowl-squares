@@ -62,6 +62,24 @@
             </div>
         </div>
 
+        <!-- Find Your Squares Banner -->
+        <div class="find-squares-banner hide-for-admin" id="findSquaresBanner">
+            <button class="find-squares-toggle" id="findSquaresToggle" onclick="toggleFindSquares()">
+                <span class="find-squares-icon">🔍</span>
+                <span class="find-squares-title">Claimed squares? Find them easily here.</span>
+                <span class="find-squares-arrow" id="findSquaresArrow">▼</span>
+            </button>
+            <div class="find-squares-content" id="findSquaresContent">
+                <div class="find-squares-input-row">
+                    <input type="email" id="findSquaresEmail" placeholder="Enter the email you used to claim" onkeypress="handleFindSquaresKeypress(event)">
+                    <button onclick="findMySquares()" id="findSquaresBtn">Find</button>
+                </div>
+                <div class="find-squares-result" id="findSquaresResult" style="display: none;">
+                    <span class="find-squares-result-text" id="findSquaresResultText"></span>
+                    <button class="find-squares-clear" onclick="clearHighlightedSquares()">Clear</button>
+                </div>
+            </div>
+        </div>
 
         <div class="grid-tabs-container">
             <div class="grid-tabs" id="gridTabs"></div>
