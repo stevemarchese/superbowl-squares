@@ -1381,7 +1381,7 @@ h2 {
     padding: 12px 14px;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
-    font-size: 15px;
+    font-size: 16px; /* Must be 16px+ to prevent iOS auto-zoom on focus */
     font-family: var(--font-sans);
     transition: border-color 0.2s;
 }
