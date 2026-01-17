@@ -1253,6 +1253,111 @@ async function saveTeamColor(team) {
 }
 
 // ==========================================
+// Countdown Banner Functions
+// ==========================================
+
+const GAME_TIME = new Date('2026-02-08T18:30:00-05:00'); // Feb 8, 2026, 6:30 PM ET
+let countdownInterval = null;
+
+function initCountdown() {
+    const now = new Date();
+
+    // Don't show if game has started
+    if (now >= GAME_TIME) {
+        return;
+    }
+
+    // Don't show if user closed it this session
+    if (sessionStorage.getItem('countdownBannerClosed')) {
+        return;
+    }
+
+    // Don't show for admin
+    if (isAdmin) {
+        return;
+    }
+
+    // Show the banner
+    const banner = document.getElementById('countdownBanner');
+    if (banner) {
+        banner.classList.add('active');
+        updateCountdown();
+        countdownInterval = setInterval(updateCountdown, 1000);
+    }
+}
+
+function updateCountdown() {
+    const now = new Date();
+    const diff = GAME_TIME - now;
+
+    // Game has started, hide banner
+    if (diff <= 0) {
+        closeCountdownBanner();
+        return;
+    }
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+    const countdownEl = document.getElementById('countdownInline');
+    if (countdownEl) {
+        countdownEl.textContent = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+    }
+}
+
+function closeCountdownBanner() {
+    const banner = document.getElementById('countdownBanner');
+    if (banner) {
+        banner.classList.remove('active');
+    }
+    if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+    }
+    sessionStorage.setItem('countdownBannerClosed', 'true');
+}
+
+// Initialize countdown after page loads (with slight delay to let admin status load)
+setTimeout(initCountdown, 500);
+
+// ==========================================
+// Print Functions
+// ==========================================
+
+function printGrid() {
+    window.print();
+}
+
+// ==========================================
+// Mobile Menu Functions
+// ==========================================
+
+function toggleMobileMenu() {
+    const btn = document.getElementById('hamburgerBtn');
+    const menu = document.getElementById('mobileMenu');
+    btn.classList.toggle('active');
+    menu.classList.toggle('active');
+}
+
+function closeMobileMenu() {
+    const btn = document.getElementById('hamburgerBtn');
+    const menu = document.getElementById('mobileMenu');
+    btn.classList.remove('active');
+    menu.classList.remove('active');
+}
+
+// Close mobile menu when clicking outside
+document.addEventListener('click', (e) => {
+    const menu = document.getElementById('mobileMenu');
+    const btn = document.getElementById('hamburgerBtn');
+    if (menu && btn && !menu.contains(e.target) && !btn.contains(e.target)) {
+        closeMobileMenu();
+    }
+});
+
+// ==========================================
 // Find Your Squares Functions
 // ==========================================
 

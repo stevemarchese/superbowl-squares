@@ -24,6 +24,19 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+    <!-- Countdown Banner -->
+    <div class="countdown-banner hide-for-admin" id="countdownBanner">
+        <div class="countdown-banner-content">
+            <span class="countdown-banner-icon">🏈</span>
+            <span class="countdown-banner-text">
+                <strong>Super Bowl LX Kickoff:</strong>
+                <span class="countdown-inline" id="countdownInline"></span>
+                <span class="countdown-banner-cta">— Claim Your Squares Now!</span>
+            </span>
+        </div>
+        <button class="countdown-banner-close" onclick="closeCountdownBanner()" title="Dismiss">&times;</button>
+    </div>
+
     <div class="container">
         <header class="app-header">
             <div class="header-left">
@@ -37,9 +50,21 @@
                 </div>
             </div>
             <div class="header-right">
-                <button onclick="showRulesModal()" class="rules-btn">Rules</button>
-                <button onclick="showFaqModal()" class="rules-btn">FAQ</button>
+                <button onclick="showRulesModal()" class="rules-btn desktop-nav">Rules</button>
+                <button onclick="showFaqModal()" class="rules-btn desktop-nav">FAQ</button>
+                <button onclick="printGrid()" class="rules-btn desktop-nav hide-for-admin">Print</button>
                 <button onclick="adminLogout()" class="logout-btn admin-only" id="logoutBtn" style="display:none;">Logout</button>
+                <!-- Mobile hamburger menu -->
+                <button class="hamburger-btn mobile-nav" onclick="toggleMobileMenu()" id="hamburgerBtn">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+                <div class="mobile-menu" id="mobileMenu">
+                    <button onclick="showRulesModal(); closeMobileMenu();">Rules</button>
+                    <button onclick="showFaqModal(); closeMobileMenu();">FAQ</button>
+                    <button onclick="printGrid(); closeMobileMenu();" class="hide-for-admin">Print</button>
+                </div>
             </div>
         </header>
 
@@ -83,6 +108,12 @@
 
         <div class="grid-tabs-container">
             <div class="grid-tabs" id="gridTabs"></div>
+        </div>
+
+        <!-- Print Header (hidden on screen, shown on print) -->
+        <div class="print-header" style="display: none;">
+            <h1>Super Bowl LX Squares</h1>
+            <p>Stuyvesant Peglegs 2026 Fundraiser</p>
         </div>
 
         <div class="grid-wrapper">
@@ -631,6 +662,7 @@
         </div>
     </div>
 
+    
     <script src="/static/app.js"></script>
     <script>
         // Hide logo if it fails to load
