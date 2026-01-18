@@ -6,20 +6,13 @@ let selectedSquares = [];
 let currentGridId = 1;
 let gridsData = [];
 let participantsFilter = 'all';
-let scrollPosition = 0;
-
 // Body scroll lock for modals (prevents iOS viewport issues)
 function lockBodyScroll() {
-    scrollPosition = window.pageYOffset;
     document.body.classList.add('modal-open');
-    document.body.style.top = `-${scrollPosition}px`;
 }
 
 function unlockBodyScroll() {
-    if (!document.body.classList.contains('modal-open')) return;
     document.body.classList.remove('modal-open');
-    document.body.style.top = '';
-    window.scrollTo(0, scrollPosition);
 }
 
 // Initialize the app
