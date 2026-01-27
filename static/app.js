@@ -6,6 +6,10 @@ let selectedSquares = [];
 let currentGridId = 1;
 let gridsData = [];
 let participantsFilter = 'all';
+let participantsSort = 'name';
+let participantsSearch = '';
+let allParticipants = [];
+
 // Body scroll lock for modals (prevents iOS viewport issues)
 function lockBodyScroll() {
     document.body.classList.add('modal-open');
@@ -587,12 +591,16 @@ function renderNumbers() {
     });
 
     const randomizeBtn = document.getElementById('randomizeBtn');
+    const clearBtn = document.getElementById('clearBtn');
     const lockBtn = document.getElementById('lockBtn');
 
-    if (randomizeBtn && lockBtn && gameData.config.numbers_locked) {
-        randomizeBtn.disabled = true;
-        lockBtn.disabled = true;
-        lockBtn.textContent = 'Numbers Locked';
+    if (gameData.config.numbers_locked) {
+        if (randomizeBtn) randomizeBtn.disabled = true;
+        if (clearBtn) clearBtn.disabled = true;
+        if (lockBtn) {
+            lockBtn.disabled = true;
+            lockBtn.textContent = 'Numbers Locked';
+        }
     }
 }
 
@@ -866,6 +874,32 @@ async function randomizeNumbers() {
     }
 }
 
+async function clearNumbers() {
+    if (!confirm('This will clear all numbers from the grid. Claimed squares will not be affected. Continue?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/clear-numbers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ grid_id: currentGridId })
+        });
+        const result = await response.json();
+
+        if (result.error) {
+            alert(result.error);
+        } else {
+            gameData.config.row_numbers = null;
+            gameData.config.col_numbers = null;
+            renderNumbers();
+            highlightWinners();
+        }
+    } catch (error) {
+        console.error('Error clearing numbers:', error);
+    }
+}
+
 async function lockNumbers() {
     if (!confirm('Once locked, numbers cannot be changed for this grid. Are you sure?')) {
         return;
@@ -1023,65 +1057,108 @@ async function loadParticipants() {
             return;
         }
 
-        const participants = data.participants || [];
+        allParticipants = data.participants || [];
         const pricePerSquare = data.price_per_square || 10;
 
         // Update stats
-        const unpaidParticipants = participants.filter(p => !p.all_paid);
-        const totalOwed = participants.reduce((sum, p) => sum + p.amount_owed, 0);
+        const unpaidParticipants = allParticipants.filter(p => !p.all_paid);
+        const totalOwed = allParticipants.reduce((sum, p) => sum + p.amount_owed, 0);
 
-        document.getElementById('participantsCount').textContent = `${participants.length} participant${participants.length !== 1 ? 's' : ''}`;
+        document.getElementById('participantsCount').textContent = `${allParticipants.length} participant${allParticipants.length !== 1 ? 's' : ''}`;
         document.getElementById('unpaidCount').textContent = `${unpaidParticipants.length} unpaid`;
         document.getElementById('totalOwed').textContent = `$${totalOwed.toFixed(2)} outstanding`;
 
-        if (participants.length === 0) {
-            container.innerHTML = '<p class="empty-text">No participants yet</p>';
-            return;
-        }
-
-        // Filter participants based on current filter
-        let filteredParticipants = participants;
-        if (participantsFilter === 'paid') {
-            filteredParticipants = participants.filter(p => p.all_paid);
-        } else if (participantsFilter === 'unpaid') {
-            filteredParticipants = participants.filter(p => !p.all_paid);
-        }
-
-        if (filteredParticipants.length === 0) {
-            container.innerHTML = `<p class="empty-text">No ${participantsFilter} participants</p>`;
-            return;
-        }
-
-        // Render participants
-        container.innerHTML = filteredParticipants.map(p => `
-            <div class="participant-row ${p.all_paid ? 'paid' : 'unpaid'}">
-                <div class="participant-info">
-                    <span class="participant-name">${escapeHtml(p.name)}</span>
-                    <span class="participant-email">${escapeHtml(p.email)}</span>
-                    ${p.player_name ? `<span class="participant-player">Supporting: ${escapeHtml(p.player_name)}</span>` : ''}
-                </div>
-                <div class="participant-squares">
-                    ${p.total_squares} square${p.total_squares !== 1 ? 's' : ''}
-                    <span class="amount">($${(p.total_squares * pricePerSquare).toFixed(2)})</span>
-                </div>
-                <div class="participant-status">
-                    ${p.all_paid
-                        ? '<span class="status-badge paid">Paid</span>'
-                        : `<span class="status-badge unpaid">Owes $${p.amount_owed.toFixed(2)}</span>`
-                    }
-                </div>
-                <div class="participant-actions">
-                    <button onclick="togglePaid('${escapeHtml(p.email)}', ${!p.all_paid})" class="${p.all_paid ? 'mark-unpaid-btn' : 'mark-paid-btn'}">
-                        ${p.all_paid ? 'Mark Unpaid' : 'Mark Paid'}
-                    </button>
-                </div>
-            </div>
-        `).join('');
+        renderParticipants(pricePerSquare);
 
     } catch (error) {
         console.error('Error loading participants:', error);
         container.innerHTML = '<p class="error-text">Error loading participants</p>';
     }
+}
+
+function renderParticipants(pricePerSquare = 10) {
+    const container = document.getElementById('participantsList');
+    if (!container) return;
+
+    if (allParticipants.length === 0) {
+        container.innerHTML = '<p class="empty-text">No participants yet</p>';
+        return;
+    }
+
+    // Filter participants based on current filter
+    let filteredParticipants = allParticipants;
+    if (participantsFilter === 'paid') {
+        filteredParticipants = allParticipants.filter(p => p.all_paid);
+    } else if (participantsFilter === 'unpaid') {
+        filteredParticipants = allParticipants.filter(p => !p.all_paid);
+    }
+
+    // Apply search filter
+    if (participantsSearch) {
+        const searchLower = participantsSearch.toLowerCase();
+        filteredParticipants = filteredParticipants.filter(p =>
+            p.name.toLowerCase().includes(searchLower) ||
+            p.email.toLowerCase().includes(searchLower)
+        );
+    }
+
+    // Apply sorting
+    filteredParticipants = [...filteredParticipants].sort((a, b) => {
+        if (participantsSort === 'name') {
+            // Sort by last name (assume last word in name is last name)
+            const aLastName = a.name.trim().split(/\s+/).pop().toLowerCase();
+            const bLastName = b.name.trim().split(/\s+/).pop().toLowerCase();
+            return aLastName.localeCompare(bLastName);
+        } else if (participantsSort === 'claimed') {
+            // Sort by claimed date (newest first)
+            const aDate = a.first_claimed_at ? new Date(a.first_claimed_at) : new Date(0);
+            const bDate = b.first_claimed_at ? new Date(b.first_claimed_at) : new Date(0);
+            return bDate - aDate;
+        }
+        return 0;
+    });
+
+    if (filteredParticipants.length === 0) {
+        container.innerHTML = `<p class="empty-text">No matching participants</p>`;
+        return;
+    }
+
+    // Render participants
+    container.innerHTML = filteredParticipants.map(p => {
+        let claimedDateStr = '';
+        if (p.first_claimed_at) {
+            try {
+                const dt = new Date(p.first_claimed_at);
+                claimedDateStr = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            } catch (e) {
+                claimedDateStr = p.first_claimed_at;
+            }
+        }
+        return `
+        <div class="participant-row ${p.all_paid ? 'paid' : 'unpaid'}">
+            <div class="participant-info">
+                <span class="participant-name">${escapeHtml(p.name)}</span>
+                <span class="participant-email">${escapeHtml(p.email)}</span>
+                ${p.player_name ? `<span class="participant-player">Supporting: ${escapeHtml(p.player_name)}</span>` : ''}
+                ${claimedDateStr ? `<span class="participant-claimed">Claimed: ${claimedDateStr}</span>` : ''}
+            </div>
+            <div class="participant-squares">
+                ${p.total_squares} square${p.total_squares !== 1 ? 's' : ''}
+                <span class="amount">($${(p.total_squares * pricePerSquare).toFixed(2)})</span>
+            </div>
+            <div class="participant-status">
+                ${p.all_paid
+                    ? '<span class="status-badge paid">Paid</span>'
+                    : `<span class="status-badge unpaid">Owes $${p.amount_owed.toFixed(2)}</span>`
+                }
+            </div>
+            <div class="participant-actions">
+                <button onclick="togglePaid('${escapeHtml(p.email)}', ${!p.all_paid})" class="${p.all_paid ? 'mark-unpaid-btn' : 'mark-paid-btn'}">
+                    ${p.all_paid ? 'Mark Unpaid' : 'Mark Paid'}
+                </button>
+            </div>
+        </div>
+    `}).join('');
 }
 
 function filterParticipants(filter) {
@@ -1093,8 +1170,26 @@ function filterParticipants(filter) {
     });
     event.target.classList.add('active');
 
-    // Reload with new filter
-    loadParticipants();
+    // Re-render with new filter
+    renderParticipants();
+}
+
+function sortParticipants(sortBy) {
+    participantsSort = sortBy;
+
+    // Update active button
+    document.querySelectorAll('.sort-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+
+    // Re-render with new sort
+    renderParticipants();
+}
+
+function searchParticipants(query) {
+    participantsSearch = query.trim();
+    renderParticipants();
 }
 
 async function togglePaid(email, markAsPaid) {

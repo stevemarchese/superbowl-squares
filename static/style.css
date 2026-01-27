@@ -2109,6 +2109,83 @@ h2 {
     border-color: var(--color-blue);
 }
 
+.participants-controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.participants-sort {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.participants-sort label {
+    font-size: 13px;
+    color: var(--color-text-muted);
+}
+
+.sort-btn {
+    padding: 6px 12px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.sort-btn:hover {
+    border-color: var(--color-blue);
+    color: var(--color-blue);
+}
+
+.sort-btn.active {
+    background: var(--color-blue);
+    color: white;
+    border-color: var(--color-blue);
+}
+
+.participants-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.participants-search .search-icon {
+    position: absolute;
+    left: 10px;
+    width: 16px;
+    height: 16px;
+    color: var(--color-text-muted);
+    pointer-events: none;
+}
+
+.participants-search input {
+    width: 160px;
+    padding: 7px 12px 7px 32px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+}
+
+.participants-search input:focus {
+    outline: none;
+    border-color: var(--color-blue);
+}
+
+.participants-search input::placeholder {
+    color: var(--color-text-muted);
+}
+
 .participants-list {
     display: flex;
     flex-direction: column;
@@ -2167,6 +2244,12 @@ h2 {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.participant-claimed {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    white-space: nowrap;
 }
 
 .participant-squares {

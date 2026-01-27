@@ -312,6 +312,7 @@
                     </div>
                     <div class="controls">
                         <button onclick="randomizeNumbers()" id="randomizeBtn">Randomize Numbers</button>
+                        <button onclick="clearNumbers()" id="clearBtn">Clear Numbers</button>
                         <button onclick="lockNumbers()" id="lockBtn">Lock Numbers</button>
                     </div>
                 </div>
@@ -370,10 +371,21 @@
                         </div>
                         <button onclick="exportUnpaid()" class="export-btn">Export Unpaid (CSV)</button>
                     </div>
-                    <div class="participants-filter">
-                        <button class="filter-btn active" onclick="filterParticipants('all')">All</button>
-                        <button class="filter-btn" onclick="filterParticipants('unpaid')">Unpaid</button>
-                        <button class="filter-btn" onclick="filterParticipants('paid')">Paid</button>
+                    <div class="participants-controls">
+                        <div class="participants-filter">
+                            <button class="filter-btn active" onclick="filterParticipants('all')">All</button>
+                            <button class="filter-btn" onclick="filterParticipants('unpaid')">Unpaid</button>
+                            <button class="filter-btn" onclick="filterParticipants('paid')">Paid</button>
+                        </div>
+                        <div class="participants-sort">
+                            <label>Sort:</label>
+                            <button class="sort-btn active" onclick="sortParticipants('name')">Name</button>
+                            <button class="sort-btn" onclick="sortParticipants('claimed')">Date</button>
+                        </div>
+                        <div class="participants-search">
+                            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                            <input type="text" id="participantSearch" placeholder="Search..." oninput="searchParticipants(this.value)">
+                        </div>
                     </div>
                     <div class="participants-list" id="participantsList">
                         <p class="loading-text">Loading participants...</p>

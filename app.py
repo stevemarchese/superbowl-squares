@@ -478,6 +478,29 @@ def randomize_numbers():
     conn.close()
     return jsonify({'row_numbers': row_numbers, 'col_numbers': col_numbers})
 
+@app.route('/api/clear-numbers', methods=['POST'])
+@admin_required
+def clear_numbers():
+    data = request.get_json()
+    grid_id = data.get('grid_id', 1)
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute('SELECT numbers_locked FROM grids WHERE id = ?', (grid_id,))
+    result = cursor.fetchone()
+    if result and result['numbers_locked']:
+        conn.close()
+        return jsonify({'error': 'Numbers are locked'}), 400
+
+    cursor.execute('''
+        UPDATE grids SET row_numbers = NULL, col_numbers = NULL WHERE id = ?
+    ''', (grid_id,))
+
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
 @app.route('/api/lock-numbers', methods=['POST'])
 @admin_required
 def lock_numbers():
@@ -685,7 +708,7 @@ def get_participants():
 
     # Get all claimed squares with owner info
     cursor.execute('''
-        SELECT s.owner_email, s.owner_name, s.player_name, s.paid, s.grid_id, s.row, s.col, g.name as grid_name
+        SELECT s.owner_email, s.owner_name, s.player_name, s.paid, s.grid_id, s.row, s.col, s.claimed_at, g.name as grid_name
         FROM squares s
         JOIN grids g ON s.grid_id = g.id
         WHERE s.owner_email IS NOT NULL
@@ -713,15 +736,21 @@ def get_participants():
                 'squares': [],
                 'total_squares': 0,
                 'paid_squares': 0,
-                'amount_owed': 0
+                'amount_owed': 0,
+                'first_claimed_at': row['claimed_at']
             }
+
+        # Track earliest claimed date
+        if row['claimed_at'] and (not participants[email]['first_claimed_at'] or row['claimed_at'] < participants[email]['first_claimed_at']):
+            participants[email]['first_claimed_at'] = row['claimed_at']
 
         participants[email]['squares'].append({
             'grid_id': row['grid_id'],
             'grid_name': row['grid_name'],
             'row': row['row'],
             'col': row['col'],
-            'paid': row['paid']
+            'paid': row['paid'],
+            'claimed_at': row['claimed_at']
         })
         participants[email]['total_squares'] += 1
         if row['paid']:
@@ -805,9 +834,9 @@ def export_unpaid_participants():
     config = cursor.fetchone()
     price_per_square = config['price_per_square'] if config else 10.0
 
-    # Get all unpaid squares grouped by email
+    # Get all unpaid squares grouped by email with earliest claimed date
     cursor.execute('''
-        SELECT owner_email, owner_name, player_name, COUNT(*) as unpaid_squares
+        SELECT owner_email, owner_name, player_name, COUNT(*) as unpaid_squares, MIN(claimed_at) as first_claimed
         FROM squares
         WHERE owner_email IS NOT NULL AND (paid = 0 OR paid IS NULL)
         GROUP BY owner_email
@@ -818,11 +847,20 @@ def export_unpaid_participants():
     conn.close()
 
     # Build CSV
-    csv_lines = ['Name,Email,Supporting Player,Unpaid Squares,Amount Owed']
+    csv_lines = ['Name,Email,Supporting Player,Unpaid Squares,Amount Owed,First Claimed']
     for row in rows:
         amount = row['unpaid_squares'] * price_per_square
         player_name = row['player_name'] if row['player_name'] else ''
-        csv_lines.append(f"{row['owner_name']},{row['owner_email']},{player_name},{row['unpaid_squares']},${amount:.2f}")
+        first_claimed = row['first_claimed'] if row['first_claimed'] else ''
+        # Format the date if present (convert ISO to readable format)
+        if first_claimed:
+            try:
+                from datetime import datetime
+                dt = datetime.fromisoformat(first_claimed.replace('Z', '+00:00'))
+                first_claimed = dt.strftime('%m/%d/%Y')
+            except:
+                pass
+        csv_lines.append(f"{row['owner_name']},{row['owner_email']},{player_name},{row['unpaid_squares']},${amount:.2f},{first_claimed}")
 
     csv_content = '\n'.join(csv_lines)
 
