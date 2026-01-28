@@ -961,6 +961,65 @@ def bulk_mark_paid():
 
     return jsonify({'success': True, 'affected_squares': total_affected, 'emails_processed': len(emails)})
 
+# Admin: Update player name for a participant
+@app.route('/api/admin/participants/update-player', methods=['POST'])
+@admin_required
+def update_participant_player():
+    data = request.get_json()
+    email = data.get('email', '').strip().lower()
+    player_name = data.get('player_name', '').strip()
+
+    if not email:
+        return jsonify({'error': 'Email is required'}), 400
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('UPDATE squares SET player_name = ? WHERE owner_email = ?', (player_name if player_name else None, email))
+    affected = cursor.rowcount
+    conn.commit()
+    conn.close()
+
+    log_audit('config_changed', f'Player name updated to "{player_name}" for {email}', target_email=email)
+
+    return jsonify({'success': True, 'affected_squares': affected})
+
+# Admin: Get player support totals
+@app.route('/api/admin/player-totals', methods=['GET'])
+@admin_required
+def get_player_totals():
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Get price per square
+    cursor.execute('SELECT price_per_square FROM game_config WHERE id = 1')
+    config = cursor.fetchone()
+    price = config['price_per_square'] if config and config['price_per_square'] else 10
+
+    # Get totals grouped by player_name
+    cursor.execute('''
+        SELECT
+            COALESCE(player_name, 'Not specified') as player,
+            COUNT(*) as square_count,
+            SUM(CASE WHEN paid = 1 THEN 1 ELSE 0 END) as paid_count
+        FROM squares
+        WHERE owner_name IS NOT NULL
+        GROUP BY COALESCE(player_name, 'Not specified')
+        ORDER BY COUNT(*) DESC
+    ''')
+
+    totals = []
+    for row in cursor.fetchall():
+        totals.append({
+            'player': row['player'],
+            'square_count': row['square_count'],
+            'paid_count': row['paid_count'],
+            'total_amount': row['square_count'] * price,
+            'paid_amount': row['paid_count'] * price
+        })
+
+    conn.close()
+    return jsonify({'totals': totals, 'price_per_square': price})
+
 # Public: Get squares for a specific email (for "Find Your Squares" feature)
 @app.route('/api/my-squares', methods=['GET'])
 def get_my_squares():

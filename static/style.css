@@ -3078,6 +3078,123 @@ input[type="datetime-local"]::placeholder {
     }
 }
 
+/* ==========================================
+   Edit Player Button
+   ========================================== */
+
+.participant-player-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.participant-player.no-player {
+    color: var(--color-text-muted);
+    font-style: italic;
+}
+
+.edit-player-btn {
+    padding: 4px;
+    background: transparent;
+    color: var(--color-text-muted);
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.edit-player-btn:hover {
+    color: var(--color-blue);
+    background: rgba(0, 96, 170, 0.1);
+}
+
+/* ==========================================
+   Player Totals
+   ========================================== */
+
+.player-totals-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.player-total-row {
+    display: grid;
+    grid-template-columns: 32px 1fr auto auto auto;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 14px;
+    background: var(--color-bg);
+    border-radius: var(--radius-md);
+    border-left: 3px solid var(--color-blue);
+}
+
+.player-total-row.unspecified {
+    border-left-color: var(--color-text-muted);
+    opacity: 0.7;
+}
+
+.player-rank {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-blue);
+    text-align: center;
+}
+
+.player-total-row.unspecified .player-rank {
+    color: var(--color-text-muted);
+}
+
+.player-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text);
+}
+
+.player-total-row.unspecified .player-name {
+    font-style: italic;
+    color: var(--color-text-muted);
+}
+
+.player-squares {
+    font-size: 13px;
+    color: var(--color-text);
+    white-space: nowrap;
+}
+
+.player-amount {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text);
+    white-space: nowrap;
+}
+
+.player-paid {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+}
+
+.player-paid.all-paid {
+    color: #16a34a;
+}
+
+@media (max-width: 768px) {
+    .player-total-row {
+        grid-template-columns: 28px 1fr auto;
+        gap: 8px;
+    }
+
+    .player-amount,
+    .player-paid {
+        display: none;
+    }
+}
+
 @media print {
     * {
         -webkit-print-color-adjust: exact !important;

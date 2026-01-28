@@ -52,6 +52,7 @@ async function checkAdminStatus() {
             });
             // Load participant data for admin
             loadParticipants();
+            loadPlayerTotals();
         }
         // Re-render tabs to show/hide add button
         renderGridTabs();
@@ -1171,7 +1172,10 @@ function renderParticipants(pricePerSquare = 10) {
             <div class="participant-info">
                 <span class="participant-name">${escapeHtml(p.name)}</span>
                 <span class="participant-email">${escapeHtml(p.email)}</span>
-                ${p.player_name ? `<span class="participant-player">Supporting: ${escapeHtml(p.player_name)}</span>` : ''}
+                <span class="participant-player-row">
+                    ${p.player_name ? `<span class="participant-player">Supporting: ${escapeHtml(p.player_name)}</span>` : '<span class="participant-player no-player">No player specified</span>'}
+                    <button class="edit-player-btn" onclick="showEditPlayerModal('${escapeHtml(p.email)}', '${escapeHtml(p.player_name || '')}')" title="Edit player"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg></button>
+                </span>
                 ${claimedDateStr ? `<span class="participant-claimed">Claimed: ${claimedDateStr}</span>` : ''}
             </div>
             <div class="participant-squares">
@@ -1903,4 +1907,84 @@ function searchAuditLog(email) {
     auditLogSearch = email.trim();
     auditLogPage = 1;
     loadAuditLog();
+}
+
+// ==========================================
+// Edit Player Name Functions
+// ==========================================
+
+function showEditPlayerModal(email, currentPlayer) {
+    const modal = document.getElementById('editPlayerModal');
+    document.getElementById('editPlayerEmail').value = email;
+    document.getElementById('editPlayerName').value = currentPlayer || '';
+    document.getElementById('editPlayerEmailDisplay').textContent = email;
+    modal.classList.add('active');
+    lockBodyScroll();
+}
+
+function closeEditPlayerModal() {
+    document.getElementById('editPlayerModal').classList.remove('active');
+    unlockBodyScroll();
+}
+
+async function savePlayerName() {
+    const email = document.getElementById('editPlayerEmail').value;
+    const playerName = document.getElementById('editPlayerName').value.trim();
+
+    try {
+        const response = await fetch('/api/admin/participants/update-player', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, player_name: playerName })
+        });
+
+        const result = await response.json();
+        if (result.error) {
+            alert(result.error);
+        } else {
+            closeEditPlayerModal();
+            await loadParticipants();
+            await loadPlayerTotals();
+        }
+    } catch (error) {
+        console.error('Error saving player name:', error);
+        alert('Error saving player name');
+    }
+}
+
+// ==========================================
+// Player Totals Functions
+// ==========================================
+
+async function loadPlayerTotals() {
+    const container = document.getElementById('playerTotalsList');
+    if (!container) return;
+
+    try {
+        const response = await fetch('/api/admin/player-totals');
+        const data = await response.json();
+
+        if (data.error) {
+            container.innerHTML = `<p class="error-text">${data.error}</p>`;
+            return;
+        }
+
+        if (data.totals.length === 0) {
+            container.innerHTML = '<p class="empty-text">No squares claimed yet</p>';
+            return;
+        }
+
+        container.innerHTML = data.totals.map((p, index) => `
+            <div class="player-total-row ${p.player === 'Not specified' ? 'unspecified' : ''}">
+                <span class="player-rank">${index + 1}</span>
+                <span class="player-name">${escapeHtml(p.player)}</span>
+                <span class="player-squares">${p.square_count} square${p.square_count !== 1 ? 's' : ''}</span>
+                <span class="player-amount">$${p.total_amount.toFixed(0)}</span>
+                <span class="player-paid ${p.paid_count === p.square_count ? 'all-paid' : ''}">${p.paid_count}/${p.square_count} paid</span>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading player totals:', error);
+        container.innerHTML = '<p class="error-text">Error loading player totals</p>';
+    }
 }

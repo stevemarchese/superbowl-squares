@@ -411,6 +411,11 @@
                     <div class="participants-list" id="participantsList">
                         <p class="loading-text">Loading participants...</p>
                     </div>
+
+                    <h4 class="section-subtitle">Player Support Totals</h4>
+                    <div class="player-totals-list" id="playerTotalsList">
+                        <p class="loading-text">Loading player totals...</p>
+                    </div>
                 </div>
             </div>
 
@@ -565,6 +570,23 @@
             <div class="modal-buttons">
                 <button onclick="adminClearSquare()" class="danger-btn">Clear Square</button>
                 <button onclick="closeAdminModal()" class="cancel-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Player Name Modal -->
+    <div class="modal" id="editPlayerModal">
+        <div class="modal-content">
+            <h2>Edit Supporting Player</h2>
+            <p>Participant: <strong id="editPlayerEmailDisplay"></strong></p>
+            <input type="hidden" id="editPlayerEmail">
+            <div class="form-group">
+                <label for="editPlayerName">Name of Stuy player they are supporting:</label>
+                <input type="text" id="editPlayerName" placeholder="Enter player name" maxlength="50">
+            </div>
+            <div class="modal-buttons">
+                <button onclick="savePlayerName()">Save</button>
+                <button onclick="closeEditPlayerModal()" class="cancel-btn">Cancel</button>
             </div>
         </div>
     </div>
