@@ -2471,7 +2471,7 @@ h2 {
 /* Admin Grid Controls */
 .admin-grid-controls {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: 140px 160px 1fr;
     gap: 16px;
     margin-bottom: 16px;
 }
@@ -2496,9 +2496,22 @@ h2 {
 
 .input-row input {
     flex: 1;
+    min-width: 0;
     padding: 8px 12px;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-family: var(--font-sans);
+}
+
+.input-row input[type="number"] {
+    flex: 0 0 80px;
+    max-width: 80px;
+}
+
+.input-row input[type="datetime-local"] {
+    flex: 1 1 auto;
+    min-width: 180px;
     font-size: 14px;
 }
 
@@ -2511,6 +2524,7 @@ h2 {
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
+    flex-shrink: 0;
 }
 
 .input-row button:hover {
@@ -2614,6 +2628,12 @@ h2 {
     }
 
     .admin-grid-controls {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .admin-grid-controls {
         grid-template-columns: 1fr;
     }
 }
@@ -2684,6 +2704,380 @@ input[type="color"] {
 }
 
 /* Print Styles */
+/* ==========================================
+   Claim Deadline Banner
+   ========================================== */
+
+.claim-deadline-banner {
+    background: linear-gradient(135deg, var(--color-blue) 0%, var(--color-blue-light) 100%);
+    color: white;
+    padding: 12px 20px;
+    border-radius: var(--radius-md);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.claim-deadline-banner.closed {
+    background: #dc2626;
+}
+
+.claim-deadline-banner .deadline-icon {
+    font-size: 18px;
+}
+
+.claim-deadline-banner .deadline-text strong {
+    font-weight: 700;
+}
+
+.clear-btn {
+    padding: 8px 12px;
+    background: var(--color-bg);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.clear-btn:hover {
+    background: var(--color-border);
+}
+
+/* Ensure datetime-local inputs have consistent styling */
+input[type="datetime-local"] {
+    font-family: var(--font-sans);
+    color: var(--color-text);
+}
+
+input[type="datetime-local"]::-webkit-datetime-edit {
+    font-family: var(--font-sans);
+}
+
+input[type="datetime-local"]::placeholder {
+    font-family: var(--font-sans);
+    color: var(--color-text-muted);
+}
+
+/* ==========================================
+   Bulk Actions Bar
+   ========================================== */
+
+.bulk-actions-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 16px;
+    background: var(--color-blue);
+    color: white;
+    border-radius: var(--radius-md);
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.bulk-select-all {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.bulk-select-all input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.bulk-select-all label {
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.bulk-selected-count {
+    font-size: 14px;
+    font-weight: 600;
+    margin-left: auto;
+}
+
+.bulk-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.bulk-paid-btn {
+    background: #22c55e;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.bulk-paid-btn:hover {
+    background: #16a34a;
+}
+
+.bulk-unpaid-btn {
+    background: white;
+    color: var(--color-text);
+    border: none;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.bulk-unpaid-btn:hover {
+    background: var(--color-bg);
+}
+
+/* Participant checkbox column */
+.participant-row {
+    grid-template-columns: 32px 1fr auto auto auto;
+}
+
+.participant-checkbox {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.participant-checkbox input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.participant-row.selected {
+    background: rgba(0, 96, 170, 0.1);
+    border-color: var(--color-blue);
+}
+
+@media (max-width: 768px) {
+    .participant-row {
+        grid-template-columns: 32px 1fr;
+    }
+
+    .bulk-actions-bar {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .bulk-selected-count {
+        margin-left: 0;
+    }
+
+    .bulk-actions {
+        width: 100%;
+        flex-direction: column;
+    }
+
+    .bulk-paid-btn, .bulk-unpaid-btn {
+        width: 100%;
+    }
+}
+
+/* ==========================================
+   Audit Log
+   ========================================== */
+
+.audit-log-controls {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.audit-filter select {
+    padding: 8px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    cursor: pointer;
+}
+
+.audit-search input {
+    padding: 8px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    width: 200px;
+}
+
+.audit-search input:focus {
+    outline: none;
+    border-color: var(--color-blue);
+}
+
+.refresh-btn {
+    padding: 8px 16px;
+    background: var(--color-blue);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.refresh-btn:hover {
+    background: var(--color-blue-light);
+}
+
+.audit-log-list {
+    max-height: 400px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.audit-log-entry {
+    padding: 12px 16px;
+    background: var(--color-bg);
+    border-radius: var(--radius-md);
+    border-left: 3px solid var(--color-border);
+}
+
+.log-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.log-action {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--color-border);
+    color: var(--color-text);
+}
+
+.log-action.square_claimed {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.log-action.square_cleared {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.log-action.payment_marked_paid {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.log-action.payment_marked_unpaid {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.log-action.numbers_randomized,
+.log-action.numbers_locked,
+.log-action.numbers_cleared {
+    background: #f3e8ff;
+    color: #7c3aed;
+}
+
+.log-action.config_changed {
+    background: #e0f2fe;
+    color: #0284c7;
+}
+
+.log-action.game_reset {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.log-time {
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
+
+.log-details {
+    font-size: 13px;
+    color: var(--color-text);
+    margin-bottom: 4px;
+}
+
+.log-meta {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    display: flex;
+    gap: 12px;
+}
+
+.log-target {
+    color: var(--color-blue);
+}
+
+.log-location {
+    color: var(--color-text-muted);
+}
+
+.audit-log-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--color-border);
+}
+
+.audit-log-pagination button {
+    padding: 8px 16px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.audit-log-pagination button:hover:not(:disabled) {
+    background: var(--color-bg);
+    border-color: var(--color-text);
+}
+
+.audit-log-pagination button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.audit-log-pagination span {
+    font-size: 13px;
+    color: var(--color-text-muted);
+}
+
+@media (max-width: 768px) {
+    .audit-log-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .audit-filter select,
+    .audit-search input {
+        width: 100%;
+    }
+}
+
 @media print {
     * {
         -webkit-print-color-adjust: exact !important;

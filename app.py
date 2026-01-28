@@ -33,9 +33,35 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def log_audit(action, details=None, actor_email=None, target_email=None, grid_id=None, row=None, col=None):
+    """Log an action to the audit log"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO audit_log (action, details, actor_email, target_email, grid_id, row, col, timestamp)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (action, details, actor_email, target_email, grid_id, row, col, datetime.now().isoformat()))
+    conn.commit()
+    conn.close()
+
 def init_db():
     conn = get_db()
     cursor = conn.cursor()
+
+    # Create audit_log table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            action TEXT NOT NULL,
+            details TEXT,
+            actor_email TEXT,
+            target_email TEXT,
+            grid_id INTEGER,
+            row INTEGER,
+            col INTEGER,
+            timestamp TEXT NOT NULL
+        )
+    ''')
 
     # Create grids table (each grid has its own numbers)
     cursor.execute('''
@@ -161,6 +187,12 @@ def init_db():
     except sqlite3.OperationalError:
         pass
 
+    # Migration: Add claim_deadline column to game_config if not exists
+    try:
+        cursor.execute('ALTER TABLE game_config ADD COLUMN claim_deadline TEXT')
+    except sqlite3.OperationalError:
+        pass
+
     # Create default grid if none exists
     cursor.execute('SELECT COUNT(*) FROM grids')
     if cursor.fetchone()[0] == 0:
@@ -270,6 +302,51 @@ def admin_logout():
 def admin_status():
     return jsonify({'is_admin': session.get('is_admin', False)})
 
+@app.route('/api/admin/audit-log', methods=['GET'])
+@admin_required
+def get_audit_log():
+    """Get audit log with optional filtering and pagination"""
+    action_filter = request.args.get('action', '')
+    email_search = request.args.get('email', '')
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Build query with filters
+    query = 'SELECT * FROM audit_log WHERE 1=1'
+    params = []
+
+    if action_filter:
+        query += ' AND action = ?'
+        params.append(action_filter)
+
+    if email_search:
+        query += ' AND (actor_email LIKE ? OR target_email LIKE ?)'
+        params.extend([f'%{email_search}%', f'%{email_search}%'])
+
+    # Get total count for pagination
+    count_query = query.replace('SELECT *', 'SELECT COUNT(*)')
+    cursor.execute(count_query, params)
+    total = cursor.fetchone()[0]
+
+    # Add ordering and pagination
+    query += ' ORDER BY timestamp DESC LIMIT ? OFFSET ?'
+    params.extend([per_page, (page - 1) * per_page])
+
+    cursor.execute(query, params)
+    logs = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+
+    return jsonify({
+        'logs': logs,
+        'total': total,
+        'page': page,
+        'per_page': per_page,
+        'total_pages': (total + per_page - 1) // per_page
+    })
+
 @app.route('/api/admin/change-credentials', methods=['POST'])
 @admin_required
 def change_credentials():
@@ -375,7 +452,8 @@ def get_grid():
         'squares': squares,
         'config': config,
         'grid_id': grid_id,
-        'squares_limit': config.get('squares_limit', 5)
+        'squares_limit': config.get('squares_limit', 5),
+        'claim_deadline': config.get('claim_deadline')
     })
 
 # Claim a square - no login required
@@ -401,6 +479,15 @@ def claim_square():
 
     conn = get_db()
     cursor = conn.cursor()
+
+    # Check if claiming deadline has passed
+    cursor.execute('SELECT claim_deadline FROM game_config WHERE id = 1')
+    config = cursor.fetchone()
+    if config and config['claim_deadline']:
+        deadline = datetime.fromisoformat(config['claim_deadline'])
+        if datetime.now() > deadline:
+            conn.close()
+            return jsonify({'error': 'The claiming deadline has passed'}), 400
 
     # Check if square is already claimed
     cursor.execute('SELECT owner_name FROM squares WHERE grid_id = ? AND row = ? AND col = ?', (grid_id, row, col))
@@ -429,6 +516,10 @@ def claim_square():
 
     conn.commit()
     conn.close()
+
+    # Log the action
+    log_audit('square_claimed', f'Claimed by {name}', actor_email=email, grid_id=grid_id, row=row, col=col)
+
     return jsonify({'success': True})
 
 # Admin: Clear a square
@@ -442,12 +533,23 @@ def clear_square():
 
     conn = get_db()
     cursor = conn.cursor()
+
+    # Get owner info before clearing for audit log
+    cursor.execute('SELECT owner_name, owner_email FROM squares WHERE grid_id = ? AND row = ? AND col = ?', (grid_id, row, col))
+    square = cursor.fetchone()
+    target_email = square['owner_email'] if square else None
+    owner_name = square['owner_name'] if square else None
+
     cursor.execute('''
-        UPDATE squares SET owner_name = NULL, owner_email = NULL, player_name = NULL, claimed_at = NULL
+        UPDATE squares SET owner_name = NULL, owner_email = NULL, player_name = NULL, claimed_at = NULL, paid = 0
         WHERE grid_id = ? AND row = ? AND col = ?
     ''', (grid_id, row, col))
     conn.commit()
     conn.close()
+
+    # Log the action
+    log_audit('square_cleared', f'Cleared square previously owned by {owner_name}', target_email=target_email, grid_id=grid_id, row=row, col=col)
+
     return jsonify({'success': True})
 
 @app.route('/api/randomize', methods=['POST'])
@@ -476,6 +578,10 @@ def randomize_numbers():
 
     conn.commit()
     conn.close()
+
+    # Log the action
+    log_audit('numbers_randomized', f'Numbers randomized for grid {grid_id}', grid_id=grid_id)
+
     return jsonify({'row_numbers': row_numbers, 'col_numbers': col_numbers})
 
 @app.route('/api/clear-numbers', methods=['POST'])
@@ -499,6 +605,10 @@ def clear_numbers():
 
     conn.commit()
     conn.close()
+
+    # Log the action
+    log_audit('numbers_cleared', f'Numbers cleared for grid {grid_id}', grid_id=grid_id)
+
     return jsonify({'success': True})
 
 @app.route('/api/lock-numbers', methods=['POST'])
@@ -512,6 +622,10 @@ def lock_numbers():
     cursor.execute('UPDATE grids SET numbers_locked = 1 WHERE id = ?', (grid_id,))
     conn.commit()
     conn.close()
+
+    # Log the action
+    log_audit('numbers_locked', f'Numbers locked for grid {grid_id}', grid_id=grid_id)
+
     return jsonify({'success': True})
 
 @app.route('/api/config', methods=['POST'])
@@ -521,24 +635,40 @@ def update_config():
     conn = get_db()
     cursor = conn.cursor()
 
+    changes = []
+
     if 'team1_name' in data:
         cursor.execute('UPDATE game_config SET team1_name = ? WHERE id = 1', (data['team1_name'],))
+        changes.append(f"team1_name={data['team1_name']}")
     if 'team2_name' in data:
         cursor.execute('UPDATE game_config SET team2_name = ? WHERE id = 1', (data['team2_name'],))
+        changes.append(f"team2_name={data['team2_name']}")
     if 'price_per_square' in data:
         cursor.execute('UPDATE game_config SET price_per_square = ? WHERE id = 1', (data['price_per_square'],))
+        changes.append(f"price_per_square={data['price_per_square']}")
     if 'squares_limit' in data:
         cursor.execute('UPDATE game_config SET squares_limit = ? WHERE id = 1', (data['squares_limit'],))
+        changes.append(f"squares_limit={data['squares_limit']}")
     if 'show_winners' in data:
         cursor.execute('UPDATE game_config SET show_winners = ? WHERE id = 1', (1 if data['show_winners'] else 0,))
+        changes.append(f"show_winners={data['show_winners']}")
+    if 'claim_deadline' in data:
+        cursor.execute('UPDATE game_config SET claim_deadline = ? WHERE id = 1', (data['claim_deadline'] if data['claim_deadline'] else None,))
+        changes.append(f"claim_deadline={data['claim_deadline']}")
 
     # Prize percentages
     for field in ['prize_q1', 'prize_q2', 'prize_q3', 'prize_q4']:
         if field in data:
             cursor.execute(f'UPDATE game_config SET {field} = ? WHERE id = 1', (data[field],))
+            changes.append(f"{field}={data[field]}")
 
     conn.commit()
     conn.close()
+
+    # Log the action if changes were made
+    if changes:
+        log_audit('config_changed', ', '.join(changes))
+
     return jsonify({'success': True})
 
 @app.route('/api/scores', methods=['POST'])
@@ -567,7 +697,7 @@ def reset_game():
     cursor = conn.cursor()
 
     # Clear all squares across all grids
-    cursor.execute('UPDATE squares SET owner_name = NULL, owner_email = NULL, player_name = NULL, claimed_at = NULL')
+    cursor.execute('UPDATE squares SET owner_name = NULL, owner_email = NULL, player_name = NULL, claimed_at = NULL, paid = 0')
 
     # Reset all grids' numbers
     cursor.execute('UPDATE grids SET row_numbers = NULL, col_numbers = NULL, numbers_locked = 0')
@@ -584,6 +714,10 @@ def reset_game():
 
     conn.commit()
     conn.close()
+
+    # Log the action
+    log_audit('game_reset', 'All squares, numbers, and scores cleared')
+
     return jsonify({'success': True})
 
 # Admin: Create a new grid
@@ -788,7 +922,44 @@ def toggle_participant_paid():
     conn.commit()
     conn.close()
 
+    # Log the action
+    action = 'payment_marked_paid' if paid else 'payment_marked_unpaid'
+    log_audit(action, f'{affected} squares updated', target_email=email)
+
     return jsonify({'success': True, 'affected_squares': affected})
+
+# Admin: Bulk mark paid/unpaid for multiple participants
+@app.route('/api/admin/participants/bulk-mark-paid', methods=['POST'])
+@admin_required
+def bulk_mark_paid():
+    data = request.get_json()
+    emails = data.get('emails', [])
+    paid = data.get('paid', True)
+
+    if not emails:
+        return jsonify({'error': 'No emails provided'}), 400
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    total_affected = 0
+    audit_entries = []
+    for email in emails:
+        email = email.strip().lower()
+        cursor.execute('UPDATE squares SET paid = ? WHERE owner_email = ?', (1 if paid else 0, email))
+        affected = cursor.rowcount
+        total_affected += affected
+        audit_entries.append((email, affected))
+
+    conn.commit()
+    conn.close()
+
+    # Log after commit to avoid database lock
+    action = 'payment_marked_paid' if paid else 'payment_marked_unpaid'
+    for email, affected in audit_entries:
+        log_audit(action, f'{affected} squares updated (bulk)', target_email=email)
+
+    return jsonify({'success': True, 'affected_squares': total_affected, 'emails_processed': len(emails)})
 
 # Public: Get squares for a specific email (for "Find Your Squares" feature)
 @app.route('/api/my-squares', methods=['GET'])

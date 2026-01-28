@@ -9,6 +9,12 @@ let participantsFilter = 'all';
 let participantsSort = 'name';
 let participantsSearch = '';
 let allParticipants = [];
+let claimDeadline = null;
+let deadlineInterval = null;
+let selectedParticipants = new Set();
+let auditLogPage = 1;
+let auditLogFilter = '';
+let auditLogSearch = '';
 
 // Body scroll lock for modals (prevents iOS viewport issues)
 function lockBodyScroll() {
@@ -206,6 +212,7 @@ async function loadGrid() {
         const data = await response.json();
         gameData = data;
         squaresLimit = data.squares_limit || 5;
+        claimDeadline = data.claim_deadline ? new Date(data.claim_deadline) : null;
 
         // Update both admin and public limit displays
         const limitPublic = document.getElementById('squaresLimitPublic');
@@ -213,12 +220,20 @@ async function loadGrid() {
         const limitInput = document.getElementById('squaresLimitInput');
         if (limitInput) limitInput.value = squaresLimit;
 
+        // Update deadline input for admin
+        const deadlineInput = document.getElementById('claimDeadlineInput');
+        if (deadlineInput && data.claim_deadline) {
+            // Format for datetime-local input (YYYY-MM-DDTHH:MM)
+            deadlineInput.value = data.claim_deadline.slice(0, 16);
+        }
+
         renderGrid();
         renderNumbers();
         loadConfig();
         updateStats();
         highlightWinners();
         restoreHighlightedSquares();
+        updateDeadlineBanner();
     } catch (error) {
         console.error('Error loading grid:', error);
     }
@@ -254,8 +269,9 @@ function renderGrid() {
                 div.textContent = priceDisplay;
                 div.classList.add('available');
                 div.dataset.price = priceDisplay;
-                // Only show hover effect if claiming is still open
-                if (!gameData.config.numbers_locked || isAdmin) {
+                // Check if claiming is allowed (numbers not locked AND deadline not passed)
+                const claimingOpen = (!gameData.config.numbers_locked && (!claimDeadline || new Date() < claimDeadline)) || isAdmin;
+                if (claimingOpen) {
                     div.addEventListener('mouseenter', () => {
                         div.innerHTML = 'Click to<br>claim';
                     });
@@ -321,6 +337,12 @@ function handleSquareClick(row, col, square) {
     // Disable claiming once numbers are locked (except for admin)
     if (gameData.config.numbers_locked && !isAdmin) {
         alert('Claiming is closed. Numbers have been locked.');
+        return;
+    }
+
+    // Check if deadline has passed (except for admin)
+    if (!isAdmin && claimDeadline && new Date() > claimDeadline) {
+        alert('The claiming deadline has passed.');
         return;
     }
 
@@ -651,7 +673,11 @@ function loadConfig() {
 
 function updateClaimContainerVisibility() {
     const claimContainer = document.getElementById('claimSelectedContainer');
-    if (claimContainer && gameData.config.numbers_locked && !isAdmin) {
+    if (!claimContainer) return;
+
+    // Hide claim container if numbers locked or deadline passed (except for admin)
+    const deadlinePassed = claimDeadline && new Date() > claimDeadline;
+    if ((gameData.config.numbers_locked || deadlinePassed) && !isAdmin) {
         claimContainer.style.display = 'none';
     }
 }
@@ -1082,6 +1108,7 @@ function renderParticipants(pricePerSquare = 10) {
 
     if (allParticipants.length === 0) {
         container.innerHTML = '<p class="empty-text">No participants yet</p>';
+        updateBulkActionsBar();
         return;
     }
 
@@ -1120,10 +1147,11 @@ function renderParticipants(pricePerSquare = 10) {
 
     if (filteredParticipants.length === 0) {
         container.innerHTML = `<p class="empty-text">No matching participants</p>`;
+        updateBulkActionsBar();
         return;
     }
 
-    // Render participants
+    // Render participants with checkboxes
     container.innerHTML = filteredParticipants.map(p => {
         let claimedDateStr = '';
         if (p.first_claimed_at) {
@@ -1134,8 +1162,12 @@ function renderParticipants(pricePerSquare = 10) {
                 claimedDateStr = p.first_claimed_at;
             }
         }
+        const isSelected = selectedParticipants.has(p.email);
         return `
-        <div class="participant-row ${p.all_paid ? 'paid' : 'unpaid'}">
+        <div class="participant-row ${p.all_paid ? 'paid' : 'unpaid'} ${isSelected ? 'selected' : ''}">
+            <div class="participant-checkbox">
+                <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="toggleParticipantSelection('${escapeHtml(p.email)}')" />
+            </div>
             <div class="participant-info">
                 <span class="participant-name">${escapeHtml(p.name)}</span>
                 <span class="participant-email">${escapeHtml(p.email)}</span>
@@ -1159,6 +1191,9 @@ function renderParticipants(pricePerSquare = 10) {
             </div>
         </div>
     `}).join('');
+
+    updateSelectAllCheckbox();
+    updateBulkActionsBar();
 }
 
 function filterParticipants(filter) {
@@ -1583,4 +1618,289 @@ function restoreHighlightedSquares() {
             }, 100);
         }
     }
+}
+
+// ==========================================
+// Claim Deadline Functions
+// ==========================================
+
+function updateDeadlineBanner() {
+    const banner = document.getElementById('claimDeadlineBanner');
+    if (!banner) return;
+
+    // Don't show for admin
+    if (isAdmin) {
+        banner.style.display = 'none';
+        return;
+    }
+
+    if (!claimDeadline) {
+        banner.style.display = 'none';
+        return;
+    }
+
+    const now = new Date();
+    const diff = claimDeadline - now;
+
+    if (diff <= 0) {
+        // Deadline passed
+        banner.classList.add('closed');
+        banner.innerHTML = '<span class="deadline-icon">⚠️</span><span class="deadline-text"><strong>Claims closed.</strong> The deadline has passed.</span>';
+        banner.style.display = 'flex';
+    } else {
+        // Show countdown
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+        let timeStr = '';
+        if (days > 0) timeStr += `${days}d `;
+        if (hours > 0 || days > 0) timeStr += `${hours}h `;
+        timeStr += `${minutes}m`;
+
+        banner.classList.remove('closed');
+        banner.innerHTML = `<span class="deadline-icon">⏰</span><span class="deadline-text"><strong>${timeStr}</strong> remaining to claim squares</span>`;
+        banner.style.display = 'flex';
+    }
+}
+
+// Update deadline banner every minute
+setInterval(updateDeadlineBanner, 60000);
+
+async function saveClaimDeadline() {
+    const input = document.getElementById('claimDeadlineInput');
+    const deadline = input.value;
+
+    try {
+        const response = await fetch('/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ claim_deadline: deadline || null })
+        });
+        const result = await response.json();
+        if (result.error) {
+            alert(result.error);
+        } else {
+            claimDeadline = deadline ? new Date(deadline) : null;
+            updateDeadlineBanner();
+        }
+    } catch (error) {
+        console.error('Error saving deadline:', error);
+    }
+}
+
+function clearClaimDeadline() {
+    document.getElementById('claimDeadlineInput').value = '';
+    saveClaimDeadline();
+}
+
+// ==========================================
+// Bulk Mark Paid Functions
+// ==========================================
+
+function toggleParticipantSelection(email) {
+    if (selectedParticipants.has(email)) {
+        selectedParticipants.delete(email);
+    } else {
+        selectedParticipants.add(email);
+    }
+    updateBulkActionsBar();
+    updateSelectAllCheckbox();
+}
+
+function toggleSelectAll() {
+    const checkbox = document.getElementById('selectAllParticipants');
+    const visibleEmails = getVisibleParticipantEmails();
+
+    if (checkbox.checked) {
+        visibleEmails.forEach(email => selectedParticipants.add(email));
+    } else {
+        visibleEmails.forEach(email => selectedParticipants.delete(email));
+    }
+    renderParticipants();
+    updateBulkActionsBar();
+}
+
+function getVisibleParticipantEmails() {
+    let filtered = allParticipants;
+    if (participantsFilter === 'paid') {
+        filtered = allParticipants.filter(p => p.all_paid);
+    } else if (participantsFilter === 'unpaid') {
+        filtered = allParticipants.filter(p => !p.all_paid);
+    }
+    if (participantsSearch) {
+        const searchLower = participantsSearch.toLowerCase();
+        filtered = filtered.filter(p =>
+            p.name.toLowerCase().includes(searchLower) ||
+            p.email.toLowerCase().includes(searchLower)
+        );
+    }
+    return filtered.map(p => p.email);
+}
+
+function updateSelectAllCheckbox() {
+    const checkbox = document.getElementById('selectAllParticipants');
+    if (!checkbox) return;
+
+    const visibleEmails = getVisibleParticipantEmails();
+    const allSelected = visibleEmails.length > 0 && visibleEmails.every(email => selectedParticipants.has(email));
+    const someSelected = visibleEmails.some(email => selectedParticipants.has(email));
+
+    checkbox.checked = allSelected;
+    checkbox.indeterminate = someSelected && !allSelected;
+}
+
+function updateBulkActionsBar() {
+    const bar = document.getElementById('bulkActionsBar');
+    const countEl = document.getElementById('bulkSelectedCount');
+
+    if (!bar) return;
+
+    if (selectedParticipants.size > 0) {
+        bar.style.display = 'flex';
+        countEl.textContent = `${selectedParticipants.size} selected`;
+    } else {
+        bar.style.display = 'none';
+    }
+}
+
+async function bulkMarkPaid(paid) {
+    if (selectedParticipants.size === 0) return;
+
+    const action = paid ? 'mark as paid' : 'mark as unpaid';
+    if (!confirm(`Are you sure you want to ${action} for ${selectedParticipants.size} participant(s)?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/admin/participants/bulk-mark-paid', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                emails: Array.from(selectedParticipants),
+                paid: paid
+            })
+        });
+
+        const result = await response.json();
+        if (result.error) {
+            alert(result.error);
+        } else {
+            selectedParticipants.clear();
+            updateBulkActionsBar();
+            await loadParticipants();
+        }
+    } catch (error) {
+        console.error('Error bulk marking paid:', error);
+        alert('Error updating payment status');
+    }
+}
+
+// ==========================================
+// Audit Log Functions
+// ==========================================
+
+async function loadAuditLog() {
+    const container = document.getElementById('auditLogList');
+    if (!container) return;
+
+    container.innerHTML = '<p class="loading-text">Loading audit log...</p>';
+
+    try {
+        let url = `/api/admin/audit-log?page=${auditLogPage}&per_page=25`;
+        if (auditLogFilter) url += `&action=${encodeURIComponent(auditLogFilter)}`;
+        if (auditLogSearch) url += `&email=${encodeURIComponent(auditLogSearch)}`;
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.error) {
+            container.innerHTML = `<p class="error-text">${data.error}</p>`;
+            return;
+        }
+
+        if (data.logs.length === 0) {
+            container.innerHTML = '<p class="empty-text">No audit log entries found</p>';
+            updateAuditLogPagination(data);
+            return;
+        }
+
+        container.innerHTML = data.logs.map(log => {
+            const timestamp = new Date(log.timestamp);
+            const timeStr = timestamp.toLocaleDateString('en-US', {
+                month: 'short', day: 'numeric', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+
+            let targetInfo = '';
+            if (log.target_email) targetInfo = `<span class="log-target">${escapeHtml(log.target_email)}</span>`;
+            if (log.grid_id && log.row !== null && log.col !== null) {
+                targetInfo += `<span class="log-location">Grid ${log.grid_id}, Row ${log.row}, Col ${log.col}</span>`;
+            }
+
+            return `
+                <div class="audit-log-entry">
+                    <div class="log-header">
+                        <span class="log-action ${log.action}">${formatActionName(log.action)}</span>
+                        <span class="log-time">${timeStr}</span>
+                    </div>
+                    <div class="log-details">${escapeHtml(log.details || '')}</div>
+                    ${targetInfo ? `<div class="log-meta">${targetInfo}</div>` : ''}
+                </div>
+            `;
+        }).join('');
+
+        updateAuditLogPagination(data);
+    } catch (error) {
+        console.error('Error loading audit log:', error);
+        container.innerHTML = '<p class="error-text">Error loading audit log</p>';
+    }
+}
+
+function formatActionName(action) {
+    const names = {
+        'square_claimed': 'Square Claimed',
+        'square_cleared': 'Square Cleared',
+        'payment_marked_paid': 'Marked Paid',
+        'payment_marked_unpaid': 'Marked Unpaid',
+        'numbers_randomized': 'Numbers Randomized',
+        'numbers_locked': 'Numbers Locked',
+        'numbers_cleared': 'Numbers Cleared',
+        'config_changed': 'Config Changed',
+        'game_reset': 'Game Reset'
+    };
+    return names[action] || action;
+}
+
+function updateAuditLogPagination(data) {
+    const paginationEl = document.getElementById('auditLogPagination');
+    if (!paginationEl) return;
+
+    if (data.total_pages <= 1) {
+        paginationEl.innerHTML = '';
+        return;
+    }
+
+    paginationEl.innerHTML = `
+        <button onclick="changeAuditLogPage(${auditLogPage - 1})" ${auditLogPage <= 1 ? 'disabled' : ''}>Previous</button>
+        <span>Page ${data.page} of ${data.total_pages}</span>
+        <button onclick="changeAuditLogPage(${auditLogPage + 1})" ${auditLogPage >= data.total_pages ? 'disabled' : ''}>Next</button>
+    `;
+}
+
+function changeAuditLogPage(page) {
+    auditLogPage = page;
+    loadAuditLog();
+}
+
+function filterAuditLog(action) {
+    auditLogFilter = action;
+    auditLogPage = 1;
+    loadAuditLog();
+}
+
+function searchAuditLog(email) {
+    auditLogSearch = email.trim();
+    auditLogPage = 1;
+    loadAuditLog();
 }

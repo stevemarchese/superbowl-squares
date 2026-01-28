@@ -87,6 +87,9 @@
             </div>
         </div>
 
+        <!-- Claim Deadline Banner (for users) -->
+        <div class="claim-deadline-banner hide-for-admin" id="claimDeadlineBanner" style="display: none;"></div>
+
         <!-- Find Your Squares Banner -->
         <div class="find-squares-banner hide-for-admin" id="findSquaresBanner">
             <button class="find-squares-toggle" id="findSquaresToggle" onclick="toggleFindSquares()">
@@ -299,6 +302,13 @@
                                 <input type="number" id="squaresLimitInput" value="5" min="1" max="100" onchange="saveSquaresLimit()">
                             </div>
                         </div>
+                        <div class="control-group">
+                            <label>Claiming Deadline:</label>
+                            <div class="input-row">
+                                <input type="datetime-local" id="claimDeadlineInput" onchange="saveClaimDeadline()">
+                                <button onclick="clearClaimDeadline()" class="clear-btn">Clear</button>
+                            </div>
+                        </div>
                     </div>
                     <div class="admin-stats-row">
                         <div class="stat-box">
@@ -387,6 +397,17 @@
                             <input type="text" id="participantSearch" placeholder="Search..." oninput="searchParticipants(this.value)">
                         </div>
                     </div>
+                    <div class="bulk-actions-bar" id="bulkActionsBar" style="display: none;">
+                        <div class="bulk-select-all">
+                            <input type="checkbox" id="selectAllParticipants" onchange="toggleSelectAll()">
+                            <label for="selectAllParticipants">Select All</label>
+                        </div>
+                        <span class="bulk-selected-count" id="bulkSelectedCount">0 selected</span>
+                        <div class="bulk-actions">
+                            <button class="bulk-paid-btn" onclick="bulkMarkPaid(true)">Mark Selected as Paid</button>
+                            <button class="bulk-unpaid-btn" onclick="bulkMarkPaid(false)">Mark Selected as Unpaid</button>
+                        </div>
+                    </div>
                     <div class="participants-list" id="participantsList">
                         <p class="loading-text">Loading participants...</p>
                     </div>
@@ -404,6 +425,32 @@
                         <button onclick="showChangePasswordModal()">Account Settings</button>
                         <button onclick="resetGame()" class="danger-btn">Reset Game</button>
                     </div>
+
+                    <h4 class="section-subtitle">Audit Log</h4>
+                    <div class="audit-log-controls">
+                        <div class="audit-filter">
+                            <select id="auditLogActionFilter" onchange="filterAuditLog(this.value)">
+                                <option value="">All Actions</option>
+                                <option value="square_claimed">Square Claimed</option>
+                                <option value="square_cleared">Square Cleared</option>
+                                <option value="payment_marked_paid">Marked Paid</option>
+                                <option value="payment_marked_unpaid">Marked Unpaid</option>
+                                <option value="numbers_randomized">Numbers Randomized</option>
+                                <option value="numbers_locked">Numbers Locked</option>
+                                <option value="numbers_cleared">Numbers Cleared</option>
+                                <option value="config_changed">Config Changed</option>
+                                <option value="game_reset">Game Reset</option>
+                            </select>
+                        </div>
+                        <div class="audit-search">
+                            <input type="text" id="auditLogEmailSearch" placeholder="Search by email..." oninput="searchAuditLog(this.value)">
+                        </div>
+                        <button onclick="loadAuditLog()" class="refresh-btn">Refresh</button>
+                    </div>
+                    <div class="audit-log-list" id="auditLogList">
+                        <p class="empty-text">Click "Refresh" to load audit log</p>
+                    </div>
+                    <div class="audit-log-pagination" id="auditLogPagination"></div>
                 </div>
             </div>
         </div>
