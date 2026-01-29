@@ -15,6 +15,9 @@ let selectedParticipants = new Set();
 let auditLogPage = 1;
 let auditLogFilter = '';
 let auditLogSearch = '';
+let liveScoresInterval = null;
+let liveSyncEnabled = false;
+let lockedQuarters = { q1: false, q2: false, q3: false, q4: false };
 
 // Body scroll lock for modals (prevents iOS viewport issues)
 function lockBodyScroll() {
@@ -53,6 +56,8 @@ async function checkAdminStatus() {
             // Load participant data for admin
             loadParticipants();
             loadPlayerTotals();
+            // Initialize live scores
+            initLiveScores();
         }
         // Re-render tabs to show/hide add button
         renderGridTabs();
@@ -228,6 +233,23 @@ async function loadGrid() {
             deadlineInput.value = data.claim_deadline.slice(0, 16);
         }
 
+        // Update locked quarters state from grid data
+        if (data.locked_quarters) {
+            lockedQuarters = {
+                q1: data.locked_quarters.q1,
+                q2: data.locked_quarters.q2,
+                q3: data.locked_quarters.q3,
+                q4: data.locked_quarters.q4
+            };
+        }
+
+        // Update live sync state
+        if (typeof data.live_sync_enabled !== 'undefined') {
+            liveSyncEnabled = data.live_sync_enabled;
+            const liveSyncToggle = document.getElementById('liveSyncToggle');
+            if (liveSyncToggle) liveSyncToggle.checked = liveSyncEnabled;
+        }
+
         renderGrid();
         renderNumbers();
         loadConfig();
@@ -235,6 +257,11 @@ async function loadGrid() {
         highlightWinners();
         restoreHighlightedSquares();
         updateDeadlineBanner();
+
+        // Update quarter lock UI if admin
+        if (isAdmin) {
+            updateQuarterLockUI();
+        }
     } catch (error) {
         console.error('Error loading grid:', error);
     }
@@ -1870,6 +1897,10 @@ function formatActionName(action) {
         'numbers_randomized': 'Numbers Randomized',
         'numbers_locked': 'Numbers Locked',
         'numbers_cleared': 'Numbers Cleared',
+        'live_scores_synced': 'Live Scores Synced',
+        'live_sync_toggled': 'Live Sync Toggled',
+        'quarter_unlocked': 'Quarter Unlocked',
+        'quarter_locked': 'Quarter Locked',
         'config_changed': 'Config Changed',
         'game_reset': 'Game Reset'
     };
@@ -1986,5 +2017,323 @@ async function loadPlayerTotals() {
     } catch (error) {
         console.error('Error loading player totals:', error);
         container.innerHTML = '<p class="error-text">Error loading player totals</p>';
+    }
+}
+
+// ==========================================
+// Live Scores Functions
+// ==========================================
+
+async function fetchLiveScores() {
+    const statusIndicator = document.getElementById('liveStatusIndicator');
+    const statusText = document.getElementById('liveStatusText');
+    const errorDiv = document.getElementById('liveScoresError');
+    const currentDiv = document.getElementById('liveScoresCurrent');
+    const gameInfoDiv = document.getElementById('liveGameInfo');
+    const fetchBtn = document.getElementById('fetchLiveBtn');
+
+    if (fetchBtn) fetchBtn.disabled = true;
+    if (statusText) statusText.textContent = 'Fetching...';
+    if (statusIndicator) statusIndicator.className = 'live-status-indicator fetching';
+    if (errorDiv) errorDiv.style.display = 'none';
+
+    try {
+        const response = await fetch('/api/live-scores');
+        const data = await response.json();
+
+        if (data.error && !data.cached_scores) {
+            // Check if this is a "game not found" error (expected before game day)
+            if (data.error_type === 'game_not_found') {
+                if (statusText) statusText.textContent = 'Waiting';
+                if (statusIndicator) statusIndicator.className = 'live-status-indicator scheduled';
+                if (errorDiv) {
+                    errorDiv.innerHTML = `<strong>Game not yet available on ESPN</strong><br>` +
+                        `Live scores for ${data.team1_name || 'Team 1'} vs ${data.team2_name || 'Team 2'} ` +
+                        `will appear on game day.<br><br>` +
+                        `<em>You can still enter scores manually using the controls below.</em>`;
+                    errorDiv.style.display = 'block';
+                }
+            } else {
+                if (statusText) statusText.textContent = 'Error';
+                if (statusIndicator) statusIndicator.className = 'live-status-indicator error';
+                if (errorDiv) {
+                    errorDiv.textContent = data.error;
+                    if (data.available_games) {
+                        errorDiv.innerHTML += '<br><br>Available games:<br>' +
+                            data.available_games.map(g => `- ${g.name}: ${g.teams.join(' vs ')}`).join('<br>');
+                    }
+                    errorDiv.style.display = 'block';
+                }
+            }
+            if (currentDiv) currentDiv.style.display = 'none';
+            return null;
+        }
+
+        // Update locked quarters state
+        if (data.locked_quarters) {
+            lockedQuarters = {
+                q1: data.locked_quarters.q1,
+                q2: data.locked_quarters.q2,
+                q3: data.locked_quarters.q3,
+                q4: data.locked_quarters.q4
+            };
+            updateQuarterLockUI();
+        }
+
+        // Update live sync toggle
+        liveSyncEnabled = data.live_sync_enabled || false;
+        const liveSyncToggle = document.getElementById('liveSyncToggle');
+        if (liveSyncToggle) liveSyncToggle.checked = liveSyncEnabled;
+
+        if (data.game) {
+            const game = data.game;
+
+            // Update status
+            if (game.is_final) {
+                if (statusText) statusText.textContent = 'Final';
+                if (statusIndicator) statusIndicator.className = 'live-status-indicator final';
+            } else if (game.is_halftime) {
+                if (statusText) statusText.textContent = 'Halftime';
+                if (statusIndicator) statusIndicator.className = 'live-status-indicator halftime';
+            } else if (game.period > 0) {
+                if (statusText) statusText.textContent = 'Live';
+                if (statusIndicator) statusIndicator.className = 'live-status-indicator live';
+            } else {
+                if (statusText) statusText.textContent = game.status || 'Scheduled';
+                if (statusIndicator) statusIndicator.className = 'live-status-indicator scheduled';
+            }
+
+            // Update game info
+            if (gameInfoDiv) {
+                gameInfoDiv.style.display = 'flex';
+                const periodEl = document.getElementById('gamePeriod');
+                const clockEl = document.getElementById('gameClock');
+                if (periodEl) {
+                    if (game.is_final) {
+                        periodEl.textContent = 'Final';
+                    } else if (game.is_halftime) {
+                        periodEl.textContent = 'Halftime';
+                    } else if (game.period > 0) {
+                        periodEl.textContent = `Q${game.period}`;
+                    } else {
+                        periodEl.textContent = '';
+                    }
+                }
+                if (clockEl) clockEl.textContent = game.clock || '';
+            }
+
+            // Update current score display
+            if (currentDiv) {
+                currentDiv.style.display = 'flex';
+                const team1NameEl = document.getElementById('liveTeam1Name');
+                const team2NameEl = document.getElementById('liveTeam2Name');
+                const team1ScoreEl = document.getElementById('liveTeam1Score');
+                const team2ScoreEl = document.getElementById('liveTeam2Score');
+
+                if (team1NameEl) team1NameEl.textContent = game.team1_name_espn || 'Team 1';
+                if (team2NameEl) team2NameEl.textContent = game.team2_name_espn || 'Team 2';
+                if (team1ScoreEl) team1ScoreEl.textContent = game.team1_score ?? '-';
+                if (team2ScoreEl) team2ScoreEl.textContent = game.team2_score ?? '-';
+            }
+
+            return data;
+        } else if (data.cached_scores) {
+            // Show cached scores when ESPN is unavailable
+            if (statusText) statusText.textContent = 'ESPN unavailable';
+            if (statusIndicator) statusIndicator.className = 'live-status-indicator error';
+            if (currentDiv) currentDiv.style.display = 'none';
+            return null;
+        }
+
+        return data;
+
+    } catch (error) {
+        console.error('Error fetching live scores:', error);
+        if (statusText) statusText.textContent = 'Connection error';
+        if (statusIndicator) statusIndicator.className = 'live-status-indicator error';
+        if (errorDiv) {
+            errorDiv.textContent = 'Could not connect to server';
+            errorDiv.style.display = 'block';
+        }
+        return null;
+    } finally {
+        if (fetchBtn) fetchBtn.disabled = false;
+    }
+}
+
+async function syncLiveScores() {
+    const syncBtn = document.getElementById('syncLiveBtn');
+    if (syncBtn) {
+        syncBtn.disabled = true;
+        syncBtn.textContent = 'Syncing...';
+    }
+
+    try {
+        const response = await fetch('/api/admin/sync-live-scores', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+            alert('Sync error: ' + data.error);
+            return;
+        }
+
+        if (data.updated_quarters && data.updated_quarters.length > 0) {
+            alert(`Synced scores for: ${data.updated_quarters.join(', ')}`);
+            // Reload grid to show updated scores and winners
+            await loadGrid();
+        } else {
+            alert('No quarters ready to sync yet. Scores are synced when quarters complete.');
+        }
+
+        // Refresh live scores display
+        await fetchLiveScores();
+
+    } catch (error) {
+        console.error('Error syncing live scores:', error);
+        alert('Error syncing scores. Please try again.');
+    } finally {
+        if (syncBtn) {
+            syncBtn.disabled = false;
+            syncBtn.textContent = 'Sync Now';
+        }
+    }
+}
+
+async function toggleLiveSync() {
+    const toggle = document.getElementById('liveSyncToggle');
+    const enabled = toggle ? toggle.checked : false;
+
+    try {
+        const response = await fetch('/api/admin/live-sync-toggle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled })
+        });
+
+        const data = await response.json();
+        if (data.error) {
+            alert('Error: ' + data.error);
+            if (toggle) toggle.checked = !enabled;
+            return;
+        }
+
+        liveSyncEnabled = enabled;
+
+        // Start or stop auto-refresh based on toggle
+        if (enabled) {
+            startLiveScoresAutoRefresh();
+        } else {
+            stopLiveScoresAutoRefresh();
+        }
+
+    } catch (error) {
+        console.error('Error toggling live sync:', error);
+        alert('Error updating setting');
+        if (toggle) toggle.checked = !enabled;
+    }
+}
+
+function startLiveScoresAutoRefresh() {
+    // Refresh every 30 seconds when live sync is enabled
+    if (liveScoresInterval) clearInterval(liveScoresInterval);
+    liveScoresInterval = setInterval(async () => {
+        if (!isAdmin || !liveSyncEnabled) {
+            stopLiveScoresAutoRefresh();
+            return;
+        }
+        const data = await fetchLiveScores();
+        // Auto-sync if enabled and game data available
+        if (data && data.game && liveSyncEnabled) {
+            // Check if any quarters just completed that we haven't synced
+            const game = data.game;
+            const shouldSync = (
+                (game.period > 1 && !lockedQuarters.q1) ||
+                (game.period > 2 || game.is_halftime) && !lockedQuarters.q2 ||
+                (game.period > 3 || game.is_final) && !lockedQuarters.q3 ||
+                (game.is_final && !lockedQuarters.q4)
+            );
+            if (shouldSync) {
+                await syncLiveScores();
+            }
+        }
+    }, 30000);
+}
+
+function stopLiveScoresAutoRefresh() {
+    if (liveScoresInterval) {
+        clearInterval(liveScoresInterval);
+        liveScoresInterval = null;
+    }
+}
+
+async function toggleQuarterLock(quarter) {
+    const isLocked = lockedQuarters[`q${quarter}`];
+
+    try {
+        const endpoint = isLocked ? '/api/admin/unlock-quarter' : '/api/admin/lock-quarter';
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ quarter })
+        });
+
+        const data = await response.json();
+        if (data.error) {
+            alert('Error: ' + data.error);
+            return;
+        }
+
+        lockedQuarters[`q${quarter}`] = !isLocked;
+        updateQuarterLockUI();
+
+    } catch (error) {
+        console.error('Error toggling quarter lock:', error);
+        alert('Error updating quarter lock');
+    }
+}
+
+function updateQuarterLockUI() {
+    for (let q = 1; q <= 4; q++) {
+        const isLocked = lockedQuarters[`q${q}`];
+        const quarterDiv = document.getElementById(`quarterQ${q}`);
+        const statusSpan = document.getElementById(`q${q}LockStatus`);
+        const lockBtn = document.getElementById(`q${q}LockBtn`);
+        const team1Input = document.getElementById(`q${q}_team1`);
+        const team2Input = document.getElementById(`q${q}_team2`);
+
+        if (quarterDiv) {
+            quarterDiv.classList.toggle('locked', isLocked);
+        }
+        if (statusSpan) {
+            statusSpan.textContent = isLocked ? '(locked)' : '';
+            statusSpan.className = 'quarter-lock-status' + (isLocked ? ' locked' : '');
+        }
+        if (lockBtn) {
+            lockBtn.textContent = isLocked ? 'Unlock' : 'Lock';
+            lockBtn.className = 'quarter-lock-btn' + (isLocked ? ' locked' : '');
+        }
+        if (team1Input) {
+            team1Input.disabled = isLocked;
+        }
+        if (team2Input) {
+            team2Input.disabled = isLocked;
+        }
+    }
+}
+
+// Initialize live scores when admin panel loads
+function initLiveScores() {
+    if (!isAdmin) return;
+
+    // Fetch initial live scores data
+    fetchLiveScores();
+
+    // Start auto-refresh if enabled
+    if (liveSyncEnabled) {
+        startLiveScoresAutoRefresh();
     }
 }

@@ -4,6 +4,8 @@ import json
 import random
 import hashlib
 import os
+import urllib.request
+import urllib.error
 from datetime import datetime
 from functools import wraps
 
@@ -190,6 +192,21 @@ def init_db():
     # Migration: Add claim_deadline column to game_config if not exists
     try:
         cursor.execute('ALTER TABLE game_config ADD COLUMN claim_deadline TEXT')
+    except sqlite3.OperationalError:
+        pass
+
+    # Migration: Add live score tracking columns to game_config
+    for col in ['q1_locked', 'q2_locked', 'q3_locked', 'q4_locked']:
+        try:
+            cursor.execute(f'ALTER TABLE game_config ADD COLUMN {col} INTEGER DEFAULT 0')
+        except sqlite3.OperationalError:
+            pass
+    try:
+        cursor.execute('ALTER TABLE game_config ADD COLUMN live_sync_enabled INTEGER DEFAULT 0')
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute('ALTER TABLE game_config ADD COLUMN espn_game_id TEXT')
     except sqlite3.OperationalError:
         pass
 
@@ -447,13 +464,23 @@ def get_grid():
     config['numbers_locked'] = grid_config.get('numbers_locked', 0)
     config['grid_name'] = grid_config.get('name', 'Grid 1')
 
+    # Include locked quarters for admin UI
+    locked_quarters = {
+        'q1': bool(config.get('q1_locked', 0)),
+        'q2': bool(config.get('q2_locked', 0)),
+        'q3': bool(config.get('q3_locked', 0)),
+        'q4': bool(config.get('q4_locked', 0)),
+    }
+
     conn.close()
     return jsonify({
         'squares': squares,
         'config': config,
         'grid_id': grid_id,
         'squares_limit': config.get('squares_limit', 5),
-        'claim_deadline': config.get('claim_deadline')
+        'claim_deadline': config.get('claim_deadline'),
+        'locked_quarters': locked_quarters,
+        'live_sync_enabled': bool(config.get('live_sync_enabled', 0))
     })
 
 # Claim a square - no login required
@@ -690,6 +717,373 @@ def update_scores():
     conn.close()
     return jsonify({'success': True})
 
+
+def fetch_espn_nfl_scores():
+    """Fetch current NFL scores from ESPN API"""
+    url = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard'
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            data = json.loads(response.read().decode('utf-8'))
+            return data
+    except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError) as e:
+        print(f"Error fetching ESPN data: {e}")
+        return None
+
+
+def parse_espn_game(game_data, team1_name, team2_name):
+    """Parse ESPN game data to extract scores and status"""
+    result = {
+        'game_id': game_data.get('id'),
+        'status': None,
+        'period': None,
+        'clock': None,
+        'team1_score': None,
+        'team2_score': None,
+        'team1_name_espn': None,
+        'team2_name_espn': None,
+        'linescores': {'team1': [], 'team2': []},
+        'is_final': False,
+        'is_halftime': False,
+        'quarter_scores': {}
+    }
+
+    # Get competition data
+    competitions = game_data.get('competitions', [])
+    if not competitions:
+        return result
+
+    competition = competitions[0]
+
+    # Get status
+    status_obj = competition.get('status', {})
+    status_type = status_obj.get('type', {})
+    result['status'] = status_type.get('description', 'Unknown')
+    result['period'] = status_obj.get('period', 0)
+    result['clock'] = status_obj.get('displayClock', '')
+    result['is_final'] = status_type.get('completed', False)
+    result['is_halftime'] = status_type.get('name') == 'STATUS_HALFTIME'
+
+    # Get competitors (teams)
+    competitors = competition.get('competitors', [])
+    team1_data = None
+    team2_data = None
+
+    for comp in competitors:
+        team_info = comp.get('team', {})
+        team_name_espn = team_info.get('displayName', '') or team_info.get('name', '')
+        team_abbrev = team_info.get('abbreviation', '')
+
+        # Match teams by checking if our team name contains the ESPN team name or abbreviation
+        team1_lower = team1_name.lower() if team1_name else ''
+        team2_lower = team2_name.lower() if team2_name else ''
+        espn_lower = team_name_espn.lower()
+        abbrev_lower = team_abbrev.lower()
+
+        if (espn_lower in team1_lower or team1_lower in espn_lower or
+            abbrev_lower in team1_lower or team1_lower in abbrev_lower or
+            any(word in team1_lower for word in espn_lower.split())):
+            team1_data = comp
+            result['team1_name_espn'] = team_name_espn
+        elif (espn_lower in team2_lower or team2_lower in espn_lower or
+              abbrev_lower in team2_lower or team2_lower in abbrev_lower or
+              any(word in team2_lower for word in espn_lower.split())):
+            team2_data = comp
+            result['team2_name_espn'] = team_name_espn
+
+    # Extract scores
+    if team1_data:
+        result['team1_score'] = int(team1_data.get('score', 0) or 0)
+        linescores = team1_data.get('linescores', [])
+        result['linescores']['team1'] = [int(ls.get('value', 0)) for ls in linescores]
+
+    if team2_data:
+        result['team2_score'] = int(team2_data.get('score', 0) or 0)
+        linescores = team2_data.get('linescores', [])
+        result['linescores']['team2'] = [int(ls.get('value', 0)) for ls in linescores]
+
+    # Calculate cumulative scores for each quarter
+    t1_cumulative = 0
+    t2_cumulative = 0
+    for i in range(4):
+        if i < len(result['linescores']['team1']):
+            t1_cumulative += result['linescores']['team1'][i]
+        if i < len(result['linescores']['team2']):
+            t2_cumulative += result['linescores']['team2'][i]
+
+        quarter = i + 1
+        result['quarter_scores'][f'q{quarter}_team1'] = t1_cumulative
+        result['quarter_scores'][f'q{quarter}_team2'] = t2_cumulative
+
+    return result
+
+
+def find_super_bowl_game(espn_data, team1_name, team2_name):
+    """Find the Super Bowl game from ESPN data based on team names"""
+    if not espn_data or 'events' not in espn_data:
+        return None
+
+    for event in espn_data['events']:
+        # Check if this is a Super Bowl (usually has "Super Bowl" in the name)
+        event_name = event.get('name', '').lower()
+        short_name = event.get('shortName', '').lower()
+
+        # Try to match by team names first
+        parsed = parse_espn_game(event, team1_name, team2_name)
+        if parsed['team1_name_espn'] and parsed['team2_name_espn']:
+            return parsed
+
+        # Check if it's explicitly a Super Bowl
+        if 'super bowl' in event_name or 'super bowl' in short_name:
+            return parse_espn_game(event, team1_name, team2_name)
+
+    return None
+
+
+@app.route('/api/live-scores', methods=['GET'])
+def get_live_scores():
+    """Fetch live scores from ESPN and return current game state"""
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Get current config including team names
+    cursor.execute('''SELECT team1_name, team2_name, espn_game_id,
+                      q1_locked, q2_locked, q3_locked, q4_locked,
+                      live_sync_enabled,
+                      q1_team1, q1_team2, q2_team1, q2_team2,
+                      q3_team1, q3_team2, q4_team1, q4_team2
+                      FROM game_config WHERE id = 1''')
+    config = cursor.fetchone()
+    conn.close()
+
+    if not config:
+        return jsonify({'error': 'No game configuration found'}), 404
+
+    team1_name = config['team1_name']
+    team2_name = config['team2_name']
+
+    # Fetch from ESPN
+    espn_data = fetch_espn_nfl_scores()
+    if not espn_data:
+        return jsonify({
+            'error': 'Could not fetch live scores',
+            'cached_scores': {
+                'q1_team1': config['q1_team1'], 'q1_team2': config['q1_team2'],
+                'q2_team1': config['q2_team1'], 'q2_team2': config['q2_team2'],
+                'q3_team1': config['q3_team1'], 'q3_team2': config['q3_team2'],
+                'q4_team1': config['q4_team1'], 'q4_team2': config['q4_team2'],
+            },
+            'locked_quarters': {
+                'q1': bool(config['q1_locked']),
+                'q2': bool(config['q2_locked']),
+                'q3': bool(config['q3_locked']),
+                'q4': bool(config['q4_locked']),
+            }
+        }), 503
+
+    # Find the game with our teams
+    game = find_super_bowl_game(espn_data, team1_name, team2_name)
+
+    if not game:
+        return jsonify({
+            'error': 'Game not yet available - live scores will appear on game day',
+            'error_type': 'game_not_found',
+            'team1_name': team1_name,
+            'team2_name': team2_name,
+            'available_games': [
+                {
+                    'name': e.get('name', 'Unknown'),
+                    'teams': [c.get('team', {}).get('displayName', '')
+                             for c in e.get('competitions', [{}])[0].get('competitors', [])]
+                }
+                for e in espn_data.get('events', [])
+            ]
+        }), 404
+
+    return jsonify({
+        'success': True,
+        'game': {
+            'game_id': game['game_id'],
+            'status': game['status'],
+            'period': game['period'],
+            'clock': game['clock'],
+            'is_final': game['is_final'],
+            'is_halftime': game['is_halftime'],
+            'team1_score': game['team1_score'],
+            'team2_score': game['team2_score'],
+            'team1_name_espn': game['team1_name_espn'],
+            'team2_name_espn': game['team2_name_espn'],
+            'quarter_scores': game['quarter_scores'],
+            'linescores': game['linescores']
+        },
+        'locked_quarters': {
+            'q1': bool(config['q1_locked']),
+            'q2': bool(config['q2_locked']),
+            'q3': bool(config['q3_locked']),
+            'q4': bool(config['q4_locked']),
+        },
+        'live_sync_enabled': bool(config['live_sync_enabled']),
+        'saved_scores': {
+            'q1_team1': config['q1_team1'], 'q1_team2': config['q1_team2'],
+            'q2_team1': config['q2_team1'], 'q2_team2': config['q2_team2'],
+            'q3_team1': config['q3_team1'], 'q3_team2': config['q3_team2'],
+            'q4_team1': config['q4_team1'], 'q4_team2': config['q4_team2'],
+        }
+    })
+
+
+@app.route('/api/admin/sync-live-scores', methods=['POST'])
+@admin_required
+def sync_live_scores():
+    """Sync live scores from ESPN to the database"""
+    data = request.get_json() or {}
+    force_quarter = data.get('force_quarter')  # Optional: force sync a specific quarter
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Get current config
+    cursor.execute('''SELECT team1_name, team2_name,
+                      q1_locked, q2_locked, q3_locked, q4_locked
+                      FROM game_config WHERE id = 1''')
+    config = cursor.fetchone()
+
+    if not config:
+        conn.close()
+        return jsonify({'error': 'No game configuration found'}), 404
+
+    # Fetch from ESPN
+    espn_data = fetch_espn_nfl_scores()
+    if not espn_data:
+        conn.close()
+        return jsonify({'error': 'Could not fetch live scores from ESPN'}), 503
+
+    game = find_super_bowl_game(espn_data, config['team1_name'], config['team2_name'])
+    if not game:
+        conn.close()
+        return jsonify({'error': 'Game not yet available - live scores will appear on game day'}), 404
+
+    # Determine which quarters to update
+    updates = []
+    quarter_updates = {}
+
+    # Q1: Update if period > 1 or halftime or final, and not locked (unless forced)
+    if (game['period'] > 1 or game['is_halftime'] or game['is_final']):
+        if not config['q1_locked'] or force_quarter == 1:
+            quarter_updates['q1_team1'] = game['quarter_scores'].get('q1_team1')
+            quarter_updates['q1_team2'] = game['quarter_scores'].get('q1_team2')
+            if not config['q1_locked']:
+                cursor.execute('UPDATE game_config SET q1_locked = 1 WHERE id = 1')
+            updates.append('Q1')
+
+    # Q2: Update if period > 2 or final (halftime means Q2 is done)
+    if (game['period'] > 2 or game['is_final'] or game['is_halftime']):
+        if not config['q2_locked'] or force_quarter == 2:
+            quarter_updates['q2_team1'] = game['quarter_scores'].get('q2_team1')
+            quarter_updates['q2_team2'] = game['quarter_scores'].get('q2_team2')
+            if not config['q2_locked']:
+                cursor.execute('UPDATE game_config SET q2_locked = 1 WHERE id = 1')
+            updates.append('Q2')
+
+    # Q3: Update if period > 3 or final
+    if (game['period'] > 3 or game['is_final']):
+        if not config['q3_locked'] or force_quarter == 3:
+            quarter_updates['q3_team1'] = game['quarter_scores'].get('q3_team1')
+            quarter_updates['q3_team2'] = game['quarter_scores'].get('q3_team2')
+            if not config['q3_locked']:
+                cursor.execute('UPDATE game_config SET q3_locked = 1 WHERE id = 1')
+            updates.append('Q3')
+
+    # Q4/Final: Update if game is final
+    if game['is_final']:
+        if not config['q4_locked'] or force_quarter == 4:
+            quarter_updates['q4_team1'] = game['quarter_scores'].get('q4_team1')
+            quarter_updates['q4_team2'] = game['quarter_scores'].get('q4_team2')
+            if not config['q4_locked']:
+                cursor.execute('UPDATE game_config SET q4_locked = 1 WHERE id = 1')
+            updates.append('Q4/Final')
+
+    # Apply score updates
+    for field, value in quarter_updates.items():
+        if value is not None:
+            cursor.execute(f'UPDATE game_config SET {field} = ? WHERE id = 1', (value,))
+
+    conn.commit()
+    conn.close()
+
+    # Log the sync
+    if updates:
+        log_audit('live_scores_synced', f'Synced {", ".join(updates)} from ESPN')
+
+    return jsonify({
+        'success': True,
+        'updated_quarters': updates,
+        'scores': quarter_updates,
+        'game_status': game['status'],
+        'period': game['period'],
+        'is_final': game['is_final']
+    })
+
+
+@app.route('/api/admin/live-sync-toggle', methods=['POST'])
+@admin_required
+def toggle_live_sync():
+    """Enable or disable automatic live score syncing"""
+    data = request.get_json()
+    enabled = data.get('enabled', False)
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('UPDATE game_config SET live_sync_enabled = ? WHERE id = 1', (1 if enabled else 0,))
+    conn.commit()
+    conn.close()
+
+    log_audit('live_sync_toggled', f'Live sync {"enabled" if enabled else "disabled"}')
+
+    return jsonify({'success': True, 'live_sync_enabled': enabled})
+
+
+@app.route('/api/admin/unlock-quarter', methods=['POST'])
+@admin_required
+def unlock_quarter():
+    """Unlock a quarter to allow manual override of scores"""
+    data = request.get_json()
+    quarter = data.get('quarter')
+
+    if quarter not in [1, 2, 3, 4]:
+        return jsonify({'error': 'Invalid quarter'}), 400
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(f'UPDATE game_config SET q{quarter}_locked = 0 WHERE id = 1')
+    conn.commit()
+    conn.close()
+
+    log_audit('quarter_unlocked', f'Q{quarter} unlocked for manual override')
+
+    return jsonify({'success': True, 'quarter': quarter})
+
+
+@app.route('/api/admin/lock-quarter', methods=['POST'])
+@admin_required
+def lock_quarter():
+    """Manually lock a quarter's scores"""
+    data = request.get_json()
+    quarter = data.get('quarter')
+
+    if quarter not in [1, 2, 3, 4]:
+        return jsonify({'error': 'Invalid quarter'}), 400
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(f'UPDATE game_config SET q{quarter}_locked = 1 WHERE id = 1')
+    conn.commit()
+    conn.close()
+
+    log_audit('quarter_locked', f'Q{quarter} manually locked')
+
+    return jsonify({'success': True, 'quarter': quarter})
+
 @app.route('/api/reset', methods=['POST'])
 @admin_required
 def reset_game():
@@ -702,13 +1096,16 @@ def reset_game():
     # Reset all grids' numbers
     cursor.execute('UPDATE grids SET row_numbers = NULL, col_numbers = NULL, numbers_locked = 0')
 
-    # Reset scores
+    # Reset scores and locked quarters
     cursor.execute('''
         UPDATE game_config SET
             q1_team1 = NULL, q1_team2 = NULL,
             q2_team1 = NULL, q2_team2 = NULL,
             q3_team1 = NULL, q3_team2 = NULL,
-            q4_team1 = NULL, q4_team2 = NULL
+            q4_team1 = NULL, q4_team2 = NULL,
+            q1_locked = 0, q2_locked = 0,
+            q3_locked = 0, q4_locked = 0,
+            live_sync_enabled = 0
         WHERE id = 1
     ''')
 

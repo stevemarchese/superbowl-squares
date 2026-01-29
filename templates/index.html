@@ -248,27 +248,77 @@
                             </div>
                         </div>
                     </div>
+                    <h4 class="section-subtitle">Live Scores</h4>
+                    <div class="live-scores-panel">
+                        <div class="live-scores-status">
+                            <div class="live-status-indicator" id="liveStatusIndicator">
+                                <span class="status-dot"></span>
+                                <span class="status-text" id="liveStatusText">Not connected</span>
+                            </div>
+                            <div class="live-game-info" id="liveGameInfo" style="display: none;">
+                                <span class="game-period" id="gamePeriod"></span>
+                                <span class="game-clock" id="gameClock"></span>
+                            </div>
+                        </div>
+                        <div class="live-scores-current" id="liveScoresCurrent" style="display: none;">
+                            <div class="live-score-display">
+                                <span class="live-team" id="liveTeam1Name">Team 1</span>
+                                <span class="live-score" id="liveTeam1Score">0</span>
+                                <span class="live-separator">-</span>
+                                <span class="live-score" id="liveTeam2Score">0</span>
+                                <span class="live-team" id="liveTeam2Name">Team 2</span>
+                            </div>
+                        </div>
+                        <div class="live-scores-controls">
+                            <label class="toggle-label">
+                                <input type="checkbox" id="liveSyncToggle" onchange="toggleLiveSync()">
+                                <span>Auto-sync scores when quarters end</span>
+                            </label>
+                            <div class="live-buttons">
+                                <button onclick="fetchLiveScores()" class="live-btn" id="fetchLiveBtn">Check Live Scores</button>
+                                <button onclick="syncLiveScores()" class="live-btn primary" id="syncLiveBtn">Sync Now</button>
+                            </div>
+                        </div>
+                        <div class="live-scores-error" id="liveScoresError" style="display: none;"></div>
+                    </div>
+
                     <h4 class="section-subtitle">Scores</h4>
                     <div class="quarters">
-                        <div class="quarter">
-                            <h3>Q1</h3>
+                        <div class="quarter" id="quarterQ1">
+                            <div class="quarter-header">
+                                <h3>Q1</h3>
+                                <span class="quarter-lock-status" id="q1LockStatus"></span>
+                            </div>
                             <input type="number" id="q1_team1" placeholder="Team 1" onchange="saveScores()">
                             <input type="number" id="q1_team2" placeholder="Team 2" onchange="saveScores()">
+                            <button class="quarter-lock-btn" id="q1LockBtn" onclick="toggleQuarterLock(1)">Lock</button>
                         </div>
-                        <div class="quarter">
-                            <h3>Q2</h3>
+                        <div class="quarter" id="quarterQ2">
+                            <div class="quarter-header">
+                                <h3>Q2</h3>
+                                <span class="quarter-lock-status" id="q2LockStatus"></span>
+                            </div>
                             <input type="number" id="q2_team1" placeholder="Team 1" onchange="saveScores()">
                             <input type="number" id="q2_team2" placeholder="Team 2" onchange="saveScores()">
+                            <button class="quarter-lock-btn" id="q2LockBtn" onclick="toggleQuarterLock(2)">Lock</button>
                         </div>
-                        <div class="quarter">
-                            <h3>Q3</h3>
+                        <div class="quarter" id="quarterQ3">
+                            <div class="quarter-header">
+                                <h3>Q3</h3>
+                                <span class="quarter-lock-status" id="q3LockStatus"></span>
+                            </div>
                             <input type="number" id="q3_team1" placeholder="Team 1" onchange="saveScores()">
                             <input type="number" id="q3_team2" placeholder="Team 2" onchange="saveScores()">
+                            <button class="quarter-lock-btn" id="q3LockBtn" onclick="toggleQuarterLock(3)">Lock</button>
                         </div>
-                        <div class="quarter">
-                            <h3>Q4 / Final</h3>
+                        <div class="quarter" id="quarterQ4">
+                            <div class="quarter-header">
+                                <h3>Q4 / Final</h3>
+                                <span class="quarter-lock-status" id="q4LockStatus"></span>
+                            </div>
                             <input type="number" id="q4_team1" placeholder="Team 1" onchange="saveScores()">
                             <input type="number" id="q4_team2" placeholder="Team 2" onchange="saveScores()">
+                            <button class="quarter-lock-btn" id="q4LockBtn" onclick="toggleQuarterLock(4)">Lock</button>
                         </div>
                     </div>
                     <div class="control-group winners-toggle">
@@ -443,6 +493,10 @@
                                 <option value="numbers_randomized">Numbers Randomized</option>
                                 <option value="numbers_locked">Numbers Locked</option>
                                 <option value="numbers_cleared">Numbers Cleared</option>
+                                <option value="live_scores_synced">Live Scores Synced</option>
+                                <option value="live_sync_toggled">Live Sync Toggled</option>
+                                <option value="quarter_unlocked">Quarter Unlocked</option>
+                                <option value="quarter_locked">Quarter Locked</option>
                                 <option value="config_changed">Config Changed</option>
                                 <option value="game_reset">Game Reset</option>
                             </select>
