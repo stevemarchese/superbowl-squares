@@ -347,6 +347,49 @@ body.modal-open {
     color: var(--color-text-muted);
 }
 
+/* Alert Banner Admin Panel */
+.banner-admin-panel {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+}
+
+.banner-toggle-row {
+    margin-bottom: 10px;
+}
+
+.banner-text-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+.banner-text-row textarea {
+    flex: 1;
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    resize: vertical;
+}
+
+.banner-save-btn {
+    padding: 8px 16px;
+    background: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.banner-save-btn:hover {
+    opacity: 0.9;
+}
+
 /* Countdown Banner */
 .countdown-banner {
     background: var(--color-primary);
@@ -2769,7 +2812,7 @@ h2 {
 }
 
 .accordion-section.open .accordion-content {
-    max-height: 1000px;
+    max-height: 2000px;
     padding: 0 20px 20px;
 }
 
@@ -2935,6 +2978,45 @@ h2 {
 
 .accordion-content .controls button {
     padding: 10px 20px;
+}
+
+/* Score input labels */
+.score-inputs-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 4px;
+}
+
+.score-input-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.score-input-label {
+    font-size: 10px;
+    font-weight: 600;
+    margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 64px;
+}
+
+.score-team1-label {
+    color: var(--color-blue);
+}
+
+.score-team2-label {
+    color: var(--color-primary);
+}
+
+.score-dash {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    padding-bottom: 8px;
 }
 
 /* Quarters inside accordion */

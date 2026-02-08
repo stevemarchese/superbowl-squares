@@ -673,6 +673,10 @@ function loadConfig() {
     team1Label.textContent = window.team1Name;
     team2Label.textContent = window.team2Name;
 
+    // Update score section team labels
+    document.querySelectorAll('.score-team1-label').forEach(el => el.textContent = window.team1Name);
+    document.querySelectorAll('.score-team2-label').forEach(el => el.textContent = window.team2Name);
+
     const priceInput = document.getElementById('pricePerSquare');
     if (priceInput && config.price_per_square !== null && config.price_per_square !== undefined) {
         priceInput.value = config.price_per_square;
@@ -697,6 +701,9 @@ function loadConfig() {
 
     // Hide claim container if numbers are locked (for non-admin)
     updateClaimContainerVisibility();
+
+    // Load alert banner state
+    loadAlertBanner(config);
 }
 
 function updateClaimContainerVisibility() {
@@ -1434,13 +1441,6 @@ const GAME_TIME = new Date('2026-02-08T18:30:00-05:00'); // Feb 8, 2026, 6:30 PM
 let countdownInterval = null;
 
 function initCountdown() {
-    const now = new Date();
-
-    // Don't show if game has started
-    if (now >= GAME_TIME) {
-        return;
-    }
-
     // Don't show if user closed it this session
     if (sessionStorage.getItem('countdownBannerClosed')) {
         return;
@@ -1451,13 +1451,30 @@ function initCountdown() {
         return;
     }
 
-    // Show the banner
     const banner = document.getElementById('countdownBanner');
-    if (banner) {
+    if (!banner) return;
+
+    const config = gameData && gameData.config ? gameData.config : {};
+
+    // If custom banner text is enabled, show that instead of countdown
+    if (config.banner_enabled && config.banner_text) {
+        const textDisplay = document.getElementById('bannerTextDisplay');
+        if (textDisplay) {
+            textDisplay.innerHTML = config.banner_text;
+        }
         banner.classList.add('active');
-        updateCountdown();
-        countdownInterval = setInterval(updateCountdown, 1000);
+        return;
     }
+
+    // Otherwise show countdown if game hasn't started
+    const now = new Date();
+    if (now >= GAME_TIME) {
+        return;
+    }
+
+    banner.classList.add('active');
+    updateCountdown();
+    countdownInterval = setInterval(updateCountdown, 1000);
 }
 
 function updateCountdown() {
@@ -2347,6 +2364,62 @@ function initLiveScores() {
 // ==========================================
 // Email Notification Functions
 // ==========================================
+
+// Alert Banner functions
+async function toggleBanner() {
+    const toggle = document.getElementById('bannerEnabledToggle');
+    const enabled = toggle ? toggle.checked : false;
+
+    try {
+        const response = await fetch('/api/admin/banner', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled })
+        });
+        const data = await response.json();
+        if (data.error) {
+            alert('Error: ' + data.error);
+            if (toggle) toggle.checked = !enabled;
+        }
+    } catch (err) {
+        alert('Failed to update banner');
+        if (toggle) toggle.checked = !enabled;
+    }
+}
+
+async function saveBannerText() {
+    const textarea = document.getElementById('bannerTextInput');
+    const text = textarea ? textarea.value.trim() : '';
+
+    try {
+        const response = await fetch('/api/admin/banner', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+        });
+        const data = await response.json();
+        if (data.error) {
+            alert('Error: ' + data.error);
+        } else {
+            alert('Banner text saved!');
+        }
+    } catch (err) {
+        alert('Failed to save banner text');
+    }
+}
+
+function loadAlertBanner(config) {
+    // Load admin controls if present
+    const toggle = document.getElementById('bannerEnabledToggle');
+    const textarea = document.getElementById('bannerTextInput');
+    if (toggle) toggle.checked = !!config.banner_enabled;
+    if (textarea) textarea.value = config.banner_text || '';
+
+    // Re-init the banner display for non-admin
+    if (!isAdmin) {
+        initCountdown();
+    }
+}
 
 async function toggleEmails() {
     const toggle = document.getElementById('emailsEnabledToggle');
