@@ -282,6 +282,39 @@
                         <div class="live-scores-error" id="liveScoresError" style="display: none;"></div>
                     </div>
 
+                    <h4 class="section-subtitle">Email Notifications</h4>
+                    <div class="email-notifications-panel">
+                        <div class="email-toggle-row">
+                            <label class="toggle-label">
+                                <input type="checkbox" id="emailsEnabledToggle" onchange="toggleEmails()">
+                                <span>Send email notifications when quarters end</span>
+                            </label>
+                            <span class="email-config-hint" id="emailConfigHint"></span>
+                        </div>
+                        <div class="email-status-grid" id="emailStatusGrid">
+                            <div class="email-quarter-status" id="emailQ1Status">
+                                <span class="email-q-label">Q1</span>
+                                <span class="email-q-badge" id="emailQ1Badge">—</span>
+                                <button class="email-resend-btn" id="emailQ1Resend" onclick="resendEmails(1)" style="display:none;">Resend</button>
+                            </div>
+                            <div class="email-quarter-status" id="emailQ2Status">
+                                <span class="email-q-label">Q2</span>
+                                <span class="email-q-badge" id="emailQ2Badge">—</span>
+                                <button class="email-resend-btn" id="emailQ2Resend" onclick="resendEmails(2)" style="display:none;">Resend</button>
+                            </div>
+                            <div class="email-quarter-status" id="emailQ3Status">
+                                <span class="email-q-label">Q3</span>
+                                <span class="email-q-badge" id="emailQ3Badge">—</span>
+                                <button class="email-resend-btn" id="emailQ3Resend" onclick="resendEmails(3)" style="display:none;">Resend</button>
+                            </div>
+                            <div class="email-quarter-status" id="emailQ4Status">
+                                <span class="email-q-label">Q4</span>
+                                <span class="email-q-badge" id="emailQ4Badge">—</span>
+                                <button class="email-resend-btn" id="emailQ4Resend" onclick="resendEmails(4)" style="display:none;">Resend</button>
+                            </div>
+                        </div>
+                    </div>
+
                     <h4 class="section-subtitle">Scores</h4>
                     <div class="quarters">
                         <div class="quarter" id="quarterQ1">
@@ -497,6 +530,8 @@
                                 <option value="live_sync_toggled">Live Sync Toggled</option>
                                 <option value="quarter_unlocked">Quarter Unlocked</option>
                                 <option value="quarter_locked">Quarter Locked</option>
+                                <option value="emails_sent">Emails Sent</option>
+                                <option value="emails_resend">Emails Resend</option>
                                 <option value="config_changed">Config Changed</option>
                                 <option value="game_reset">Game Reset</option>
                             </select>

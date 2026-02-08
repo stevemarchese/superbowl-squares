@@ -6,6 +6,10 @@ import hashlib
 import os
 import urllib.request
 import urllib.error
+import smtplib
+import threading
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from datetime import datetime
 from functools import wraps
 
@@ -18,6 +22,8 @@ if os.path.exists('/data'):
 else:
     DATABASE = 'squares.db'
 SQUARES_PER_EMAIL_LIMIT = 5
+GMAIL_ADDRESS = os.environ.get('GMAIL_ADDRESS', '')
+GMAIL_APP_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD', '')
 
 def get_db():
     conn = sqlite3.connect(DATABASE)
@@ -207,6 +213,28 @@ def init_db():
         pass
     try:
         cursor.execute('ALTER TABLE game_config ADD COLUMN espn_game_id TEXT')
+    except sqlite3.OperationalError:
+        pass
+
+    # Create email_sends table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS email_sends (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            quarter INTEGER NOT NULL,
+            grid_id INTEGER,
+            email_type TEXT NOT NULL,
+            recipient_email TEXT NOT NULL,
+            recipient_name TEXT,
+            status TEXT DEFAULT 'pending',
+            error_message TEXT,
+            created_at TEXT NOT NULL,
+            sent_at TEXT
+        )
+    ''')
+
+    # Migration: Add emails_enabled column to game_config
+    try:
+        cursor.execute('ALTER TABLE game_config ADD COLUMN emails_enabled INTEGER DEFAULT 0')
     except sqlite3.OperationalError:
         pass
 
@@ -1015,6 +1043,14 @@ def sync_live_scores():
     if updates:
         log_audit('live_scores_synced', f'Synced {", ".join(updates)} from ESPN')
 
+    # Trigger emails for newly locked quarters
+    for quarter_label in updates:
+        if 'Final' in quarter_label:
+            q_num = 4
+        else:
+            q_num = int(quarter_label[1])
+        send_quarter_emails_async(q_num)
+
     return jsonify({
         'success': True,
         'updated_quarters': updates,
@@ -1084,6 +1120,77 @@ def lock_quarter():
 
     return jsonify({'success': True, 'quarter': quarter})
 
+@app.route('/api/admin/email-toggle', methods=['POST'])
+@admin_required
+def toggle_emails():
+    """Toggle email notifications on/off"""
+    data = request.get_json()
+    enabled = data.get('enabled', False)
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('UPDATE game_config SET emails_enabled = ? WHERE id = 1', (1 if enabled else 0,))
+    conn.commit()
+    conn.close()
+
+    log_audit('config_changed', f'Email notifications {"enabled" if enabled else "disabled"}')
+    return jsonify({'success': True, 'emails_enabled': enabled})
+
+
+@app.route('/api/admin/email-status', methods=['GET'])
+@admin_required
+def email_status():
+    """Get email send counts per quarter"""
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Get emails_enabled state
+    cursor.execute('SELECT emails_enabled FROM game_config WHERE id = 1')
+    config = cursor.fetchone()
+    emails_enabled = bool(config['emails_enabled']) if config else False
+
+    # Get counts per quarter
+    quarters = {}
+    for q in range(1, 5):
+        cursor.execute(
+            'SELECT status, COUNT(*) as cnt FROM email_sends WHERE quarter = ? GROUP BY status',
+            (q,)
+        )
+        counts = {'sent': 0, 'failed': 0, 'pending': 0}
+        for row in cursor.fetchall():
+            counts[row['status']] = row['cnt']
+        quarters[f'q{q}'] = counts
+
+    conn.close()
+    return jsonify({'emails_enabled': emails_enabled, 'quarters': quarters})
+
+
+@app.route('/api/admin/resend-emails', methods=['POST'])
+@admin_required
+def resend_emails():
+    """Delete existing email records for a quarter and re-trigger sending"""
+    data = request.get_json()
+    quarter = data.get('quarter')
+
+    if quarter not in [1, 2, 3, 4]:
+        return jsonify({'error': 'Invalid quarter'}), 400
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Delete existing records for this quarter
+    cursor.execute('DELETE FROM email_sends WHERE quarter = ?', (quarter,))
+    conn.commit()
+    conn.close()
+
+    log_audit('emails_resend', f'Resending emails for Q{quarter}')
+
+    # Trigger email sending
+    send_quarter_emails_async(quarter)
+
+    return jsonify({'success': True, 'quarter': quarter})
+
+
 @app.route('/api/reset', methods=['POST'])
 @admin_required
 def reset_game():
@@ -1096,7 +1203,7 @@ def reset_game():
     # Reset all grids' numbers
     cursor.execute('UPDATE grids SET row_numbers = NULL, col_numbers = NULL, numbers_locked = 0')
 
-    # Reset scores and locked quarters
+    # Reset scores, locked quarters, and email settings
     cursor.execute('''
         UPDATE game_config SET
             q1_team1 = NULL, q1_team2 = NULL,
@@ -1105,9 +1212,13 @@ def reset_game():
             q4_team1 = NULL, q4_team2 = NULL,
             q1_locked = 0, q2_locked = 0,
             q3_locked = 0, q4_locked = 0,
-            live_sync_enabled = 0
+            live_sync_enabled = 0,
+            emails_enabled = 0
         WHERE id = 1
     ''')
+
+    # Clear email send history
+    cursor.execute('DELETE FROM email_sends')
 
     conn.commit()
     conn.close()
@@ -1497,6 +1608,322 @@ def export_unpaid_participants():
         mimetype='text/csv',
         headers={'Content-Disposition': 'attachment; filename=unpaid_participants.csv'}
     )
+
+# ==========================================
+# Email Notification Functions
+# ==========================================
+
+def calculate_quarter_winner(quarter, grid_id, conn):
+    """Calculate who won a given quarter on a given grid"""
+    cursor = conn.cursor()
+
+    # Get scores for this quarter
+    cursor.execute(f'SELECT q{quarter}_team1, q{quarter}_team2, team1_name, team2_name FROM game_config WHERE id = 1')
+    config = cursor.fetchone()
+    if not config or config[f'q{quarter}_team1'] is None or config[f'q{quarter}_team2'] is None:
+        return None
+
+    team1_score = int(config[f'q{quarter}_team1'])
+    team2_score = int(config[f'q{quarter}_team2'])
+
+    # Get grid numbers
+    cursor.execute('SELECT row_numbers, col_numbers FROM grids WHERE id = ?', (grid_id,))
+    grid = cursor.fetchone()
+    if not grid or not grid['row_numbers'] or not grid['col_numbers']:
+        return None
+
+    col_numbers = json.loads(grid['col_numbers'])
+    row_numbers = json.loads(grid['row_numbers'])
+
+    # Find winning position
+    team1_last_digit = team1_score % 10
+    team2_last_digit = team2_score % 10
+
+    if team1_last_digit not in col_numbers or team2_last_digit not in row_numbers:
+        return None
+
+    col = col_numbers.index(team1_last_digit)
+    row = row_numbers.index(team2_last_digit)
+
+    # Find square owner
+    cursor.execute('SELECT owner_name, owner_email FROM squares WHERE grid_id = ? AND row = ? AND col = ?', (grid_id, row, col))
+    square = cursor.fetchone()
+
+    return {
+        'owner_name': square['owner_name'] if square and square['owner_name'] else None,
+        'owner_email': square['owner_email'] if square and square['owner_email'] else None,
+        'row': row,
+        'col': col,
+        'team1_score': team1_score,
+        'team2_score': team2_score,
+        'team1_name': config['team1_name'] or 'Team 1',
+        'team2_name': config['team2_name'] or 'Team 2',
+        'grid_id': grid_id
+    }
+
+
+def calculate_prize_amount(quarter, conn):
+    """Calculate the prize amount for a quarter based on total squares sold"""
+    cursor = conn.cursor()
+
+    # Count all claimed squares across all grids
+    cursor.execute('SELECT COUNT(*) FROM squares WHERE owner_name IS NOT NULL')
+    total_claimed = cursor.fetchone()[0]
+
+    cursor.execute('SELECT price_per_square, prize_q1, prize_q2, prize_q3, prize_q4 FROM game_config WHERE id = 1')
+    config = cursor.fetchone()
+    if not config:
+        return 0
+
+    price = config['price_per_square'] or 10
+    total_pot = total_claimed * price
+
+    pct_field = f'prize_q{quarter}'
+    pct = config[pct_field] or 10
+    return total_pot * (pct / 100)
+
+
+def send_email(to_email, subject, html_body, text_body):
+    """Send an email via Gmail SMTP. Returns (success, error_msg)."""
+    if not GMAIL_ADDRESS or not GMAIL_APP_PASSWORD:
+        return False, 'Gmail credentials not configured'
+
+    msg = MIMEMultipart('alternative')
+    msg['From'] = GMAIL_ADDRESS
+    msg['To'] = to_email
+    msg['Subject'] = subject
+
+    msg.attach(MIMEText(text_body, 'plain'))
+    msg.attach(MIMEText(html_body, 'html'))
+
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(GMAIL_ADDRESS, GMAIL_APP_PASSWORD)
+            server.sendmail(GMAIL_ADDRESS, to_email, msg.as_string())
+        return True, None
+    except Exception as e:
+        return False, str(e)
+
+
+def send_winner_email(recipient_email, recipient_name, quarter, team1_name, team2_name, team1_score, team2_score, prize_amount, grid_name):
+    """Build and send a winner notification email"""
+    is_final = (quarter == 4)
+    q_label = 'Q4 / Final' if is_final else f'Q{quarter}'
+    subject = f"You Won {q_label}! - Super Bowl Squares"
+
+    final_note = "<p>Thanks for being part of our fundraiser! We hope you enjoyed the game.</p>" if is_final else "<p>Your squares are still in play for the remaining quarters. Good luck!</p>"
+
+    html_body = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h1 style="color: #2e7d32; text-align: center;">Congratulations, {recipient_name}!</h1>
+        <div style="background: #e8f5e9; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0;">
+            <h2 style="margin: 0 0 10px 0;">You won {q_label}!</h2>
+            <p style="font-size: 18px; margin: 5px 0;">{team1_name}: {team1_score} &mdash; {team2_name}: {team2_score}</p>
+            <p style="font-size: 14px; color: #666;">Grid: {grid_name}</p>
+            <p style="font-size: 24px; font-weight: bold; color: #2e7d32; margin: 15px 0;">Prize: ${prize_amount:.2f}</p>
+        </div>
+        <div style="background: #f5f5f5; border-radius: 8px; padding: 15px; margin: 20px 0;">
+            <h3 style="margin-top: 0;">Payout Instructions</h3>
+            <p>Your prize will be sent via Venmo from <strong>@susan-mui-1</strong>. Please make sure your Venmo account is set up to receive payments.</p>
+        </div>
+        {final_note}
+        <p style="text-align: center; margin-top: 30px;">
+            <a href="https://www.peglegsfundraiser.org/" style="background: #1a73e8; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">View the Board &amp; Winners</a>
+        </p>
+        <p style="text-align: center; color: #888; font-size: 12px; margin-top: 20px;">Stuyvesant Peglegs Super Bowl LX Squares Fundraiser</p>
+    </div>
+    """
+
+    text_body = f"""Congratulations, {recipient_name}!
+
+You won {q_label}!
+
+{team1_name}: {team1_score} - {team2_name}: {team2_score}
+Grid: {grid_name}
+Prize: ${prize_amount:.2f}
+
+Your prize will be sent via Venmo from @susan-mui-1.
+
+{'Thanks for being part of our fundraiser!' if is_final else 'Your squares are still in play for the remaining quarters. Good luck!'}
+
+Check the board and winners at: https://www.peglegsfundraiser.org/
+"""
+
+    return send_email(recipient_email, subject, html_body, text_body)
+
+
+def send_participant_email(recipient_email, recipient_name, quarter, team1_name, team2_name, team1_score, team2_score, is_final):
+    """Build and send a participant update email"""
+    q_label = 'Q4 / Final' if is_final else f'Q{quarter}'
+    subject = f"{q_label} Update - Super Bowl Squares"
+
+    if is_final:
+        status_msg_html = "<p>The game is over! Thanks for participating in our fundraiser and supporting Stuyvesant Baseball. Your donation makes a difference!</p>"
+        status_msg_text = "The game is over! Thanks for participating in our fundraiser and supporting Stuyvesant Baseball. Your donation makes a difference!"
+    else:
+        status_msg_html = "<p>Your squares are still in play for the remaining quarters. Good luck!</p>"
+        status_msg_text = "Your squares are still in play for the remaining quarters. Good luck!"
+
+    html_body = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h1 style="text-align: center;">{q_label} Scores Are In!</h1>
+        <div style="background: #e3f2fd; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0;">
+            <p style="font-size: 18px; margin: 5px 0;">{team1_name}: {team1_score} &mdash; {team2_name}: {team2_score}</p>
+        </div>
+        {status_msg_html}
+        <p style="text-align: center; margin-top: 30px;">
+            <a href="https://www.peglegsfundraiser.org/" style="background: #1a73e8; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Check the Board &amp; Winners</a>
+        </p>
+        <p style="text-align: center; color: #888; font-size: 12px; margin-top: 20px;">Stuyvesant Peglegs Super Bowl LX Squares Fundraiser</p>
+    </div>
+    """
+
+    text_body = f"""{q_label} Scores Are In!
+
+{team1_name}: {team1_score} - {team2_name}: {team2_score}
+
+{status_msg_text}
+
+Check the board and winners at: https://www.peglegsfundraiser.org/
+"""
+
+    return send_email(recipient_email, subject, html_body, text_body)
+
+
+def send_quarter_emails(quarter):
+    """Orchestrate sending winner + participant emails for a quarter"""
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Check if emails are enabled
+    cursor.execute('SELECT emails_enabled FROM game_config WHERE id = 1')
+    config = cursor.fetchone()
+    if not config or not config['emails_enabled']:
+        conn.close()
+        return
+
+    # Check Gmail credentials
+    if not GMAIL_ADDRESS or not GMAIL_APP_PASSWORD:
+        conn.close()
+        return
+
+    # Get scores and team names
+    cursor.execute(f'SELECT q{quarter}_team1, q{quarter}_team2, team1_name, team2_name FROM game_config WHERE id = 1')
+    score_config = cursor.fetchone()
+    if not score_config or score_config[f'q{quarter}_team1'] is None:
+        conn.close()
+        return
+
+    team1_score = int(score_config[f'q{quarter}_team1'])
+    team2_score = int(score_config[f'q{quarter}_team2'])
+    team1_name = score_config['team1_name'] or 'Team 1'
+    team2_name = score_config['team2_name'] or 'Team 2'
+    is_final = (quarter == 4)
+
+    # Get all active grids
+    cursor.execute('SELECT id, name FROM grids WHERE is_active = 1')
+    grids = cursor.fetchall()
+
+    winner_emails_set = set()
+    sent_count = 0
+    failed_count = 0
+
+    # Process each grid — send winner emails
+    for grid in grids:
+        grid_id = grid['id']
+        grid_name = grid['name']
+
+        winner = calculate_quarter_winner(quarter, grid_id, conn)
+        if not winner or not winner['owner_email']:
+            continue
+
+        # Check if already sent
+        cursor.execute(
+            'SELECT id FROM email_sends WHERE quarter = ? AND grid_id = ? AND email_type = ? AND recipient_email = ? AND status = ?',
+            (quarter, grid_id, 'winner', winner['owner_email'], 'sent')
+        )
+        if cursor.fetchone():
+            winner_emails_set.add(winner['owner_email'])
+            continue
+
+        prize_amount = calculate_prize_amount(quarter, conn)
+
+        # Record pending
+        now = datetime.now().isoformat()
+        cursor.execute(
+            'INSERT INTO email_sends (quarter, grid_id, email_type, recipient_email, recipient_name, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            (quarter, grid_id, 'winner', winner['owner_email'], winner['owner_name'], 'pending', now)
+        )
+        send_id = cursor.lastrowid
+        conn.commit()
+
+        success, error = send_winner_email(
+            winner['owner_email'], winner['owner_name'], quarter,
+            team1_name, team2_name, team1_score, team2_score,
+            prize_amount, grid_name
+        )
+
+        if success:
+            cursor.execute('UPDATE email_sends SET status = ?, sent_at = ? WHERE id = ?', ('sent', datetime.now().isoformat(), send_id))
+            sent_count += 1
+        else:
+            cursor.execute('UPDATE email_sends SET status = ?, error_message = ? WHERE id = ?', ('failed', error, send_id))
+            failed_count += 1
+        conn.commit()
+
+        winner_emails_set.add(winner['owner_email'])
+
+    # Collect all unique participant emails (excluding winners)
+    cursor.execute('SELECT DISTINCT owner_email, owner_name FROM squares WHERE owner_email IS NOT NULL')
+    all_participants = cursor.fetchall()
+
+    for participant in all_participants:
+        email = participant['owner_email']
+        name = participant['owner_name']
+
+        if email in winner_emails_set:
+            continue
+
+        # Check if already sent
+        cursor.execute(
+            'SELECT id FROM email_sends WHERE quarter = ? AND email_type = ? AND recipient_email = ? AND status = ?',
+            (quarter, 'participant', email, 'sent')
+        )
+        if cursor.fetchone():
+            continue
+
+        now = datetime.now().isoformat()
+        cursor.execute(
+            'INSERT INTO email_sends (quarter, grid_id, email_type, recipient_email, recipient_name, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            (quarter, None, 'participant', email, name, 'pending', now)
+        )
+        send_id = cursor.lastrowid
+        conn.commit()
+
+        success, error = send_participant_email(
+            email, name, quarter, team1_name, team2_name,
+            team1_score, team2_score, is_final
+        )
+
+        if success:
+            cursor.execute('UPDATE email_sends SET status = ?, sent_at = ? WHERE id = ?', ('sent', datetime.now().isoformat(), send_id))
+            sent_count += 1
+        else:
+            cursor.execute('UPDATE email_sends SET status = ?, error_message = ? WHERE id = ?', ('failed', error, send_id))
+            failed_count += 1
+        conn.commit()
+
+    conn.close()
+
+    # Log audit
+    log_audit('emails_sent', f'Q{quarter}: {sent_count} sent, {failed_count} failed')
+
+
+def send_quarter_emails_async(quarter):
+    """Run email sending in a background thread so the sync response isn't delayed"""
+    thread = threading.Thread(target=send_quarter_emails, args=(quarter,), daemon=True)
+    thread.start()
+
 
 # Initialize database on module load (works with gunicorn)
 init_db()

@@ -1901,6 +1901,8 @@ function formatActionName(action) {
         'live_sync_toggled': 'Live Sync Toggled',
         'quarter_unlocked': 'Quarter Unlocked',
         'quarter_locked': 'Quarter Locked',
+        'emails_sent': 'Emails Sent',
+        'emails_resend': 'Emails Resend',
         'config_changed': 'Config Changed',
         'game_reset': 'Game Reset'
     };
@@ -2189,8 +2191,9 @@ async function syncLiveScores() {
             alert('No quarters ready to sync yet. Scores are synced when quarters complete.');
         }
 
-        // Refresh live scores display
+        // Refresh live scores display and email status
         await fetchLiveScores();
+        setTimeout(loadEmailStatus, 2000);
 
     } catch (error) {
         console.error('Error syncing live scores:', error);
@@ -2332,8 +2335,118 @@ function initLiveScores() {
     // Fetch initial live scores data
     fetchLiveScores();
 
+    // Load email status
+    loadEmailStatus();
+
     // Start auto-refresh if enabled
     if (liveSyncEnabled) {
         startLiveScoresAutoRefresh();
+    }
+}
+
+// ==========================================
+// Email Notification Functions
+// ==========================================
+
+async function toggleEmails() {
+    const toggle = document.getElementById('emailsEnabledToggle');
+    const enabled = toggle ? toggle.checked : false;
+
+    try {
+        const response = await fetch('/api/admin/email-toggle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled })
+        });
+
+        const data = await response.json();
+        if (data.error) {
+            alert('Error: ' + data.error);
+            if (toggle) toggle.checked = !enabled;
+        }
+    } catch (error) {
+        console.error('Error toggling emails:', error);
+        alert('Error updating email setting');
+        if (toggle) toggle.checked = !enabled;
+    }
+}
+
+async function loadEmailStatus() {
+    if (!isAdmin) return;
+
+    try {
+        const response = await fetch('/api/admin/email-status');
+        const data = await response.json();
+
+        // Update toggle
+        const toggle = document.getElementById('emailsEnabledToggle');
+        if (toggle) toggle.checked = data.emails_enabled;
+
+        // Update config hint
+        const hint = document.getElementById('emailConfigHint');
+        if (hint) {
+            // We can't check env vars from frontend, but the backend will silently skip if not configured
+            hint.textContent = '';
+        }
+
+        // Update per-quarter badges
+        for (let q = 1; q <= 4; q++) {
+            const counts = data.quarters[`q${q}`];
+            const badge = document.getElementById(`emailQ${q}Badge`);
+            const resendBtn = document.getElementById(`emailQ${q}Resend`);
+            const statusDiv = document.getElementById(`emailQ${q}Status`);
+
+            if (!badge) continue;
+
+            const total = counts.sent + counts.failed + counts.pending;
+            const isLocked = lockedQuarters[`q${q}`];
+
+            if (total === 0) {
+                badge.textContent = 'Not sent';
+                badge.className = 'email-q-badge not-sent';
+                // Show resend if quarter is locked (scores available)
+                if (resendBtn) resendBtn.style.display = isLocked ? 'inline-block' : 'none';
+            } else if (counts.failed > 0) {
+                badge.textContent = `${counts.sent} sent, ${counts.failed} failed`;
+                badge.className = 'email-q-badge has-failed';
+                if (resendBtn) resendBtn.style.display = 'inline-block';
+            } else if (counts.pending > 0) {
+                badge.textContent = `${counts.pending} pending...`;
+                badge.className = 'email-q-badge pending';
+                if (resendBtn) resendBtn.style.display = 'none';
+            } else {
+                badge.textContent = `${counts.sent} sent`;
+                badge.className = 'email-q-badge all-sent';
+                if (resendBtn) resendBtn.style.display = 'none';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading email status:', error);
+    }
+}
+
+async function resendEmails(quarter) {
+    if (!confirm(`Resend all emails for Q${quarter}? This will delete existing email records for this quarter and send all emails again.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/admin/resend-emails', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ quarter })
+        });
+
+        const data = await response.json();
+        if (data.error) {
+            alert('Error: ' + data.error);
+        } else {
+            alert(`Re-sending emails for Q${quarter}. Check status in a moment.`);
+            // Reload status after a short delay to let emails start sending
+            setTimeout(loadEmailStatus, 3000);
+        }
+    } catch (error) {
+        console.error('Error resending emails:', error);
+        alert('Error resending emails');
     }
 }
