@@ -1105,6 +1105,21 @@ body.modal-open {
     background-position: center;
 }
 
+.square .win-count {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background: var(--color-primary);
+    color: white;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1;
+    padding: 2px 4px;
+    border-radius: 6px;
+    z-index: 2;
+    pointer-events: none;
+}
+
 .square.selected {
     background: var(--color-primary);
     color: white;

@@ -1013,7 +1013,11 @@ async function saveScores() {
 }
 
 function highlightWinners() {
-    document.querySelectorAll('.square.winner').forEach(el => el.classList.remove('winner'));
+    document.querySelectorAll('.square.winner').forEach(el => {
+        el.classList.remove('winner');
+        const badge = el.querySelector('.win-count');
+        if (badge) badge.remove();
+    });
 
     const config = gameData.config;
     const rowNums = config.row_numbers;
@@ -1031,6 +1035,10 @@ function highlightWinners() {
         { label: 'Q4/Final', team1: config.q4_team1, team2: config.q4_team2 }
     ];
 
+    // First pass: count wins per square and collect winner card data
+    const winCounts = new Map();
+    const winnerCards = [];
+
     quarters.forEach(quarter => {
         if (quarter.team1 === null || quarter.team1 === undefined ||
             quarter.team2 === null || quarter.team2 === undefined ||
@@ -1045,24 +1053,43 @@ function highlightWinners() {
         const row = rowNums.indexOf(team2LastDigit);
 
         if (col !== -1 && row !== -1) {
-            const squares = document.querySelectorAll('.square');
             const index = row * 10 + col;
-            if (squares[index]) {
-                squares[index].classList.add('winner');
+            winCounts.set(index, (winCounts.get(index) || 0) + 1);
 
-                const square = gameData.squares.find(s => s.row === row && s.col === col);
-                const winnerName = square?.owner_name || 'Unclaimed';
+            const square = gameData.squares.find(s => s.row === row && s.col === col);
+            winnerCards.push({
+                index,
+                label: quarter.label,
+                winnerName: square?.owner_name || 'Unclaimed',
+                score: `${config.team1_name || 'Team 1'}: ${quarter.team1} - ${config.team2_name || 'Team 2'}: ${quarter.team2}`
+            });
+        }
+    });
 
-                const card = document.createElement('div');
-                card.className = 'winner-card';
-                card.innerHTML = `
-                    <div class="quarter-label">${quarter.label}</div>
-                    <div class="winner-name">${winnerName}</div>
-                    <div class="score">${config.team1_name || 'Team 1'}: ${quarter.team1} - ${config.team2_name || 'Team 2'}: ${quarter.team2}</div>
-                `;
-                winnersList.appendChild(card);
+    // Second pass: highlight squares and add multi-win badges
+    const squares = document.querySelectorAll('.square');
+    winCounts.forEach((count, index) => {
+        if (squares[index]) {
+            squares[index].classList.add('winner');
+            if (count > 1) {
+                const badge = document.createElement('span');
+                badge.className = 'win-count';
+                badge.textContent = `${count}x`;
+                squares[index].appendChild(badge);
             }
         }
+    });
+
+    // Render winner cards
+    winnerCards.forEach(wc => {
+        const card = document.createElement('div');
+        card.className = 'winner-card';
+        card.innerHTML = `
+            <div class="quarter-label">${wc.label}</div>
+            <div class="winner-name">${wc.winnerName}</div>
+            <div class="score">${wc.score}</div>
+        `;
+        winnersList.appendChild(card);
     });
 }
 
