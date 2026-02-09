@@ -2284,6 +2284,23 @@ async function toggleLiveSync() {
     }
 }
 
+async function checkAndSyncLiveScores() {
+    if (!isAdmin || !liveSyncEnabled) return;
+    const data = await fetchLiveScores();
+    if (data && data.game && liveSyncEnabled) {
+        const game = data.game;
+        const shouldSync = (
+            (game.period > 1 && !lockedQuarters.q1) ||
+            ((game.period > 2 || game.is_halftime) && !lockedQuarters.q2) ||
+            ((game.period > 3 || game.is_final) && !lockedQuarters.q3) ||
+            (game.is_final && !lockedQuarters.q4)
+        );
+        if (shouldSync) {
+            await syncLiveScores();
+        }
+    }
+}
+
 function startLiveScoresAutoRefresh() {
     // Refresh every 30 seconds when live sync is enabled
     if (liveScoresInterval) clearInterval(liveScoresInterval);
@@ -2292,22 +2309,18 @@ function startLiveScoresAutoRefresh() {
             stopLiveScoresAutoRefresh();
             return;
         }
-        const data = await fetchLiveScores();
-        // Auto-sync if enabled and game data available
-        if (data && data.game && liveSyncEnabled) {
-            // Check if any quarters just completed that we haven't synced
-            const game = data.game;
-            const shouldSync = (
-                (game.period > 1 && !lockedQuarters.q1) ||
-                (game.period > 2 || game.is_halftime) && !lockedQuarters.q2 ||
-                (game.period > 3 || game.is_final) && !lockedQuarters.q3 ||
-                (game.is_final && !lockedQuarters.q4)
-            );
-            if (shouldSync) {
-                await syncLiveScores();
-            }
-        }
+        await checkAndSyncLiveScores();
     }, 30000);
+
+    // Also sync immediately when tab becomes visible again (browsers throttle
+    // setInterval on background tabs, so the 30s poll may not fire)
+    document.addEventListener('visibilitychange', handleVisibilitySync);
+}
+
+async function handleVisibilitySync() {
+    if (document.visibilityState === 'visible' && isAdmin && liveSyncEnabled) {
+        await checkAndSyncLiveScores();
+    }
 }
 
 function stopLiveScoresAutoRefresh() {
@@ -2315,6 +2328,7 @@ function stopLiveScoresAutoRefresh() {
         clearInterval(liveScoresInterval);
         liveScoresInterval = null;
     }
+    document.removeEventListener('visibilitychange', handleVisibilitySync);
 }
 
 async function toggleQuarterLock(quarter) {
